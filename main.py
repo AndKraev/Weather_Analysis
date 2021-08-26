@@ -1,21 +1,18 @@
 import asyncio
+import csv
 import json
 import os
+import random
 import shutil
-from collections import defaultdict, Counter
-import csv
+import string
 import tempfile
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import List
 from zipfile import ZipFile, is_zipfile
 
-import geopy
 import pandas as pd
-from geopy import PickPoint
-from geopy.adapters import AioHTTPAdapter
-from geopy.geocoders import Nominatim
-import random
-import string
+from geopy import PickPoint, adapters
 
 
 class FileHandler:
@@ -39,7 +36,7 @@ class FileHandler:
 
         for country in self.hotel_counter.items():
             print(country[1].most_common(1))
-        pd.set_option('display.max_columns', None)
+        pd.set_option("display.max_columns", None)
         print(result)
 
     def unzip_files(self):
@@ -51,7 +48,7 @@ class FileHandler:
     def read_csv(self) -> pd.DataFrame:
         hotels_df = pd.concat(
             [
-                pd.read_csv(file, usecols=[1,2,3,4,5])
+                pd.read_csv(file, usecols=[1, 2, 3, 4, 5])
                 for file in self.temp_path.iterdir()
                 if file.name.endswith(".csv")
             ]
@@ -61,8 +58,8 @@ class FileHandler:
         hotels_df = hotels_df[hotels_df["Longitude"].apply(self.is_float)]
 
         # Convert coordinates to Float
-        hotels_df['Latitude'] = hotels_df['Latitude'].astype(float)
-        hotels_df['Longitude'] = hotels_df['Longitude'].astype(float)
+        hotels_df["Latitude"] = hotels_df["Latitude"].astype(float)
+        hotels_df["Longitude"] = hotels_df["Longitude"].astype(float)
 
         # Delete rows with wrong values in coordinates
         hotels_df = hotels_df[hotels_df["Latitude"].apply(lambda x: abs(x) <= 90)]
@@ -133,12 +130,12 @@ class AsyncFetch:
             return self.cache[coordinates]
         for _ in range(10):
             try:
-                async with PickPoint(api_key=os.environ['PickPoint_API'],
-                        adapter_factory=AioHTTPAdapter,
+                async with PickPoint(
+                    api_key=os.environ["PickPoint_API"],
+                    adapter_factory=adapters.AioHTTPAdapter,
                 ) as geolocator:
                     result = await geolocator.reverse(coordinates)
                     self.cache.update({coordinates: result.address})
-                    print("requested API")
                     return result.address
             except ValueError:
                 await asyncio.sleep(random.randint(1, 1))
@@ -147,13 +144,11 @@ class AsyncFetch:
     def get_random_string():
         length = random.randint(10, 30)
         symbols = string.printable
-        return ''.join(random.choice(symbols) for _ in range(length))
-
+        return "".join(random.choice(symbols) for _ in range(length))
 
 
 if __name__ == "__main__":
     # hotels = FileHandler(r"D:\PyProjects\Weather_Analysis\Data")
     # hotels.count_hotels()
 
-
-    print(AsyncFetch(["45.787482, 4.7648"]*1).get())
+    print(AsyncFetch(["45.787482, 4.7648"] * 1).get())
