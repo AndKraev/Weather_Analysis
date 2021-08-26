@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import shutil
 from collections import defaultdict, Counter
 import csv
@@ -132,7 +133,7 @@ class AsyncFetch:
             return self.cache[coordinates]
         for _ in range(10):
             try:
-                async with PickPoint(api_key="p8L82nEsVQNBoHychfAP",
+                async with PickPoint(api_key=os.environ['PickPoint_API'],
                         adapter_factory=AioHTTPAdapter,
                 ) as geolocator:
                     result = await geolocator.reverse(coordinates)
@@ -155,4 +156,4 @@ if __name__ == "__main__":
     # hotels.count_hotels()
 
 
-    print(AsyncFetch(["45.787482, 4.76481"]*1000).get())
+    print(AsyncFetch(["45.787482, 4.7648"]*1).get())
