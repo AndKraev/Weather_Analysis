@@ -46,13 +46,6 @@ class FileHandler:
         return hotels_df
 
     @staticmethod
-    def check_row(row):
-        if all([row["Name"], row["Latitude"], row["Longitude"]]):
-            return all(
-                [abs(float(row["Latitude"])) <= 90, abs(float(row["Longitude"])) <= 180]
-            )
-
-    @staticmethod
     def is_float(string):
         try:
             float(string)
