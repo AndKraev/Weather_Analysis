@@ -20,10 +20,13 @@ class WeatherAnalysis:
             Path(output_folder) if output_folder else self.input_path / "Output"
         )
         self.most_hotels = {}
+        self.city_centers = {}
 
         self.hotels_df = FileHandler(self.input_path, self.output_path).hotels_df
         self.count_hotels()
         self.get_most_dfs()
+        self.get_city_centers()
+        print("End")
 
     def count_hotels(self):
         hotel_counter = defaultdict(Counter)
@@ -39,15 +42,18 @@ class WeatherAnalysis:
         for country, city in self.most_hotels:
             filtered_hotels = self.hotels_df[self.hotels_df["Country"] == country]
             filtered_hotels = filtered_hotels[filtered_hotels["City"] == city]
-
             self.most_hotels[(country, city)] = filtered_hotels
             pd.set_option('display.max_columns', None)
-            print(self.most_hotels[(country, city)])
-            break
+
+    def get_city_centers(self):
+        for location, df in self.most_hotels.items():
+            latitude = (df["Latitude"].min() + df["Latitude"].max()) / 2
+            longitude = (df["Longitude"].min() + df["Longitude"].max()) / 2
+            self.city_centers[location] = (latitude, longitude)
+
 
     # def update_df(self):
-    #     filtered_hotels = filtered_hotels[["Name", 'Address', "Latitude", "Longitude"]]
-
+        #     filtered_hotels = filtered_hotels[["Name", 'Address', "Latitude", "Longitude"]]
 
 class FileHandler:
     def __init__(self, input_folder, output_folder=None):
@@ -87,9 +93,13 @@ class FileHandler:
         df = df[df["Latitude"].apply(self.is_float)]
         df = df[df["Longitude"].apply(self.is_float)]
 
+        #Convert to Float
+        df['Latitude'] = df['Latitude'].astype(float)
+        df['Longitude'] = df['Longitude'].astype(float)
+
         # Delete rows with wrong values in coordinates
-        df = df[df["Latitude"].apply(lambda x: abs(float(x)) <= 90)]
-        df = df[df["Longitude"].apply(lambda x: abs(float(x)) <= 180)]
+        df = df[df["Latitude"].apply(lambda x: abs(x) <= 90)]
+        df = df[df["Longitude"].apply(lambda x: abs(x) <= 180)]
 
         self.hotels_df = df
 
