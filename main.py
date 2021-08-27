@@ -20,16 +20,18 @@ class FileHandler:
         self.output_path = (
             Path(output_folder) if output_folder else self.input_path / "Output"
         )
-        self.hotel_counter = defaultdict(Counter)
+        self.hotels_df = None
+        self.most_hotels = []
 
     def __del__(self):
         shutil.rmtree(self.temp_path)
 
     def main(self):
         self.unzip_files()
-        hotels = self.read_csv()
-        hotels = self.clear_rows(hotels)
-        print(self.count_hotels(hotels))
+        self.read_csv()
+        self.clear_rows()
+        self.count_hotels()
+        self.create_output_directories()
 
     def unzip_files(self):
         for file in self.input_path.iterdir():
@@ -37,8 +39,8 @@ class FileHandler:
                 with ZipFile(file, mode="r") as archive:
                     archive.extractall(path=self.temp_path)
 
-    def read_csv(self) -> pd.DataFrame:
-        return pd.concat(
+    def read_csv(self):
+        self.hotels_df = pd.concat(
             [
                 pd.read_csv(f, usecols=[1, 2, 3, 4, 5])
                 for f in self.temp_path.iterdir()
@@ -46,8 +48,8 @@ class FileHandler:
             ]
         )
 
-    def clear_rows(self, dataframe):
-        df = dataframe.dropna()
+    def clear_rows(self):
+        df = self.hotels_df.dropna()
 
         # Delete rows with non-float values in coordinates
         df = df[df["Latitude"].apply(self.is_float)]
@@ -57,13 +59,21 @@ class FileHandler:
         df = df[df["Latitude"].apply(lambda x: abs(float(x)) <= 90)]
         df = df[df["Longitude"].apply(lambda x: abs(float(x)) <= 180)]
 
-        return df
+        self.hotels_df = df
 
-    def count_hotels(self, df):
-        for index, row in df.iterrows():
-            self.hotel_counter[row["Country"]][row["City"]] += 1
+    def count_hotels(self):
+        hotel_counter = defaultdict(Counter)
 
-        return {key: val.most_common(1)[0][0] for key, val in self.hotel_counter.items()}
+        for index, row in self.hotels_df.iterrows():
+            hotel_counter[row["Country"]][row["City"]] += 1
+
+        self.most_hotels.extend(
+            [(key, val.most_common(1)[0][0]) for key, val in hotel_counter.items()]
+        )
+
+    def create_output_directories(self):
+        for country, city in self.most_hotels:
+            Path(self.output_path / country / city).mkdir(parents=True, exist_ok=True)
 
     @staticmethod
     def is_float(string):
