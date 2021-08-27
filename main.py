@@ -13,25 +13,57 @@ import pandas as pd
 from geopy import PickPoint, adapters
 
 
-class FileHandler:
+class WeatherAnalysis:
     def __init__(self, input_folder, output_folder=None):
-        self.temp_path = Path(tempfile.mkdtemp())
         self.input_path = Path(input_folder)
         self.output_path = (
             Path(output_folder) if output_folder else self.input_path / "Output"
         )
+        self.most_hotels = {}
+
+        self.hotels_df = FileHandler(self.input_path, self.output_path).hotels_df
+        self.count_hotels()
+        self.get_most_dfs()
+
+    def count_hotels(self):
+        hotel_counter = defaultdict(Counter)
+
+        for index, row in self.hotels_df.iterrows():
+            hotel_counter[row["Country"]][row["City"]] += 1
+
+        self.most_hotels.update(
+            {(key, val.most_common(1)[0][0]): None for key, val in hotel_counter.items()}
+        )
+
+    def get_most_dfs(self):
+        for country, city in self.most_hotels:
+            filtered_hotels = self.hotels_df[self.hotels_df["Country"] == country]
+            filtered_hotels = filtered_hotels[filtered_hotels["City"] == city]
+
+            self.most_hotels[(country, city)] = filtered_hotels
+            pd.set_option('display.max_columns', None)
+            print(self.most_hotels[(country, city)])
+            break
+
+    # def update_df(self):
+    #     filtered_hotels = filtered_hotels[["Name", 'Address', "Latitude", "Longitude"]]
+
+
+class FileHandler:
+    def __init__(self, input_folder, output_folder=None):
+        self.input_path = input_folder
+        self.output_path = output_folder
+        self.temp_path = Path(tempfile.mkdtemp())
         self.hotels_df = None
-        self.most_hotels = []
 
-    def __del__(self):
-        shutil.rmtree(self.temp_path)
-
-    def main(self):
         self.unzip_files()
         self.read_csv()
         self.clear_rows()
-        self.count_hotels()
-        self.create_output_directories()
+
+        # self.create_folders()
+
+    def __del__(self):
+        shutil.rmtree(self.temp_path)
 
     def unzip_files(self):
         for file in self.input_path.iterdir():
@@ -61,19 +93,10 @@ class FileHandler:
 
         self.hotels_df = df
 
-    def count_hotels(self):
-        hotel_counter = defaultdict(Counter)
-
-        for index, row in self.hotels_df.iterrows():
-            hotel_counter[row["Country"]][row["City"]] += 1
-
-        self.most_hotels.extend(
-            [(key, val.most_common(1)[0][0]) for key, val in hotel_counter.items()]
-        )
-
-    def create_output_directories(self):
+    def create_folders(self):
         for country, city in self.most_hotels:
-            Path(self.output_path / country / city).mkdir(parents=True, exist_ok=True)
+            city_path = self.output_path / country / city
+            city_path.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
     def is_float(string):
@@ -82,6 +105,7 @@ class FileHandler:
             return True
         except ValueError:
             return False
+
 
 
 class AsyncFetch:
@@ -98,6 +122,8 @@ class AsyncFetch:
         self.urls = urls
         with open("cache.json", "r") as fl:
             self.cache = json.load(fl)
+        print(f"{len(self.cache)=}")
+
 
     def get(self) -> List[str]:
         """Function that creates loop and waits until all runs will be completed
@@ -142,15 +168,14 @@ class AsyncFetch:
                     api_key=os.environ["PickPoint_API"],
                     adapter_factory=adapters.AioHTTPAdapter,
                 ) as geolocator:
-                    result = await geolocator.reverse(coordinates)
-                    self.cache.update({coordinates: result.address})
-                    return result.address
-            except ValueError:
-                await asyncio.sleep(random.randint(1, 1))
+                    result = await geolocator.reverse(coordinates).address
+                    self.cache.update({coordinates: result})
+                    return result
+            except:
+                await asyncio.sleep(random.randint(1, 3))
 
 
 if __name__ == "__main__":
-    test = FileHandler(r"D:\PyProjects\Weather_Analysis\Data")
-    test.main()
+    test = WeatherAnalysis(r"D:\PyProjects\Weather_Analysis\Data")
 
-    # print(AsyncFetch(["45.787482, 4.7648"] * 1).get())
+    # print(AsyncFetch(["29.970456, -95.558938", "29.970456, -95.558938"]).get())
