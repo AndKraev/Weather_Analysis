@@ -8,9 +8,12 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import List
 from zipfile import ZipFile, is_zipfile
+from datetime import datetime
 
 import pandas as pd
+import requests as requests
 from geopy import PickPoint, adapters
+import matplotlib.pyplot as plt
 
 
 class WeatherAnalysis:
@@ -20,12 +23,18 @@ class WeatherAnalysis:
             Path(output_folder) if output_folder else self.input_path / "Output"
         )
         self.most_hotels = {}
-        self.city_centers = {}
+        self.city_weather = {}
+        self.city_center = {}
 
-        self.hotels_df = FileHandler(self.input_path, self.output_path).hotels_df
+        fh = FileHandler(self.input_path, self.output_path)
+        self.hotels_df = fh.hotels_df
         self.count_hotels()
         self.get_most_dfs()
         self.get_city_centers()
+        self.get_weather()
+        fh.create_folders(self.most_hotels)
+        self.create_charts()
+        self.max_temp()
         print("End")
 
     def count_hotels(self):
@@ -35,7 +44,10 @@ class WeatherAnalysis:
             hotel_counter[row["Country"]][row["City"]] += 1
 
         self.most_hotels.update(
-            {(key, val.most_common(1)[0][0]): None for key, val in hotel_counter.items()}
+            {
+                (key, val.most_common(1)[0][0]): None
+                for key, val in hotel_counter.items()
+            }
         )
 
     def get_most_dfs(self):
@@ -43,17 +55,106 @@ class WeatherAnalysis:
             filtered_hotels = self.hotels_df[self.hotels_df["Country"] == country]
             filtered_hotels = filtered_hotels[filtered_hotels["City"] == city]
             self.most_hotels[(country, city)] = filtered_hotels
-            pd.set_option('display.max_columns', None)
 
     def get_city_centers(self):
         for location, df in self.most_hotels.items():
             latitude = (df["Latitude"].min() + df["Latitude"].max()) / 2
             longitude = (df["Longitude"].min() + df["Longitude"].max()) / 2
-            self.city_centers[location] = (latitude, longitude)
+            self.city_center[location] = (latitude, longitude)
 
+    def get_weather(self):
+        api_key = os.environ["OpenWeather_API"]
+
+        for location in self.most_hotels:
+            lat = self.city_center[location][0]
+            lon = self.city_center[location][1]
+            url = f"https://api.openweathermap.org/data/2.5/onecall?" \
+                  f"lat={lat}&lon={lon}&exclude=hourly,minutely,alerts&units=metric&" \
+                  f"appid={api_key}"
+            fc = requests.get(url).json()
+            print(fc)
+            weather = [
+                (
+                    fc["daily"][day]["dt"],
+                    fc["daily"][day]["temp"]["min"],
+                    fc["daily"][day]["temp"]["max"],
+                )
+                for day in range(6)
+            ]
+
+            now = weather[0][0]
+            for days in range(1, 6):
+                time = now - 86400 * days
+                url = f"http://api.openweathermap.org/data/2.5/onecall/timemachine?" \
+                      f"lat={lat}&lon={lon}&dt={time}&units=metric&appid={api_key}"
+                hd = requests.get(url).json()
+                temp = [d["temp"] for d in hd["hourly"]]
+                weather.append((time, min(temp), max(temp)))
+
+            self.city_weather[location] = sorted(weather, key=lambda x: x[0])
+
+    def create_charts(self):
+        for country, city in self.most_hotels:
+            fig = plt.figure()
+            weather = self.city_weather[(country, city)]
+            plt.plot([datetime.fromtimestamp(d[0]).strftime("%d.%m") for d in weather],
+                     [d[1] for d in weather])
+            plt.plot([datetime.fromtimestamp(d[0]).strftime("%d.%m") for d in weather],
+                     [d[2] for d in weather])
+            fig.savefig(self.output_path / country / city / "chart.png")
+            break
+
+    def max_temp(self):
+        weather = list(self.city_weather.items())
+        max_temp_city, max_temp_date = self.max_temp_city(weather)
+        min_temp_city, min_temp_date = self.min_temp_city(weather)
+        delta_temp_city, delta_temp_date = self.delta_temp(weather)
+        delta_max_temp = self.delta_max_temp(weather)
+        data = {
+            "Maximum Temperature": {
+                "City": max_temp_city,
+                "Date": datetime.fromtimestamp(max_temp_date).strftime("%d.%m.%Y")
+            },
+            "Minimum Temperature": {
+                "City": min_temp_city,
+                "Date": datetime.fromtimestamp(min_temp_date).strftime("%d.%m.%Y")
+            },
+            "Maximum delta of maximum temperatures": {
+                "City": delta_max_temp,
+            },
+            "Maximum delta of minimum and maximum temperatures": {
+                "City": delta_temp_city,
+                "Date": datetime.fromtimestamp(delta_temp_date).strftime("%d.%m.%Y")
+            }
+        }
+        with open(self.output_path / "analysis.json", mode="w") as fl:
+            json.dump(data, fl, ensure_ascii=False, indent=4)
+
+    @staticmethod
+    def max_temp_city(data):
+        data = sorted(data, key=lambda x: max(t[2] for t in x[1]))[-1]
+        return data[0][1], sorted(data[1], key=lambda x: x[1])[-1][0]
+
+    @staticmethod
+    def min_temp_city(data):
+        data = sorted(data, key=lambda x: max(t[1] for t in x[1]))[0]
+        return data[0][1], sorted(data[1], key=lambda x: x[2])[0][0]
+
+    @staticmethod
+    def delta_max_temp(data):
+        data = sorted(
+            data, key=lambda x: max(t[2] for t in x[1]) - min(t[2] for t in x[1])
+        )[-1]
+        return data[0][1]
+
+    @staticmethod
+    def delta_temp(data):
+        data = sorted(data, key=lambda x: max(t[2] - t[1] for t in x[1]))[-1]
+        return data[0][1], sorted(data[1], key=lambda x: x[2] - x[1])[-1][0]
 
     # def update_df(self):
-        #     filtered_hotels = filtered_hotels[["Name", 'Address', "Latitude", "Longitude"]]
+    # filtered_hotels = filtered_hotels[["Name", 'Address', "Latitude", "Longitude"]]
+
 
 class FileHandler:
     def __init__(self, input_folder, output_folder=None):
@@ -93,9 +194,9 @@ class FileHandler:
         df = df[df["Latitude"].apply(self.is_float)]
         df = df[df["Longitude"].apply(self.is_float)]
 
-        #Convert to Float
-        df['Latitude'] = df['Latitude'].astype(float)
-        df['Longitude'] = df['Longitude'].astype(float)
+        # Convert to Float
+        df["Latitude"] = df["Latitude"].astype(float)
+        df["Longitude"] = df["Longitude"].astype(float)
 
         # Delete rows with wrong values in coordinates
         df = df[df["Latitude"].apply(lambda x: abs(x) <= 90)]
@@ -103,8 +204,8 @@ class FileHandler:
 
         self.hotels_df = df
 
-    def create_folders(self):
-        for country, city in self.most_hotels:
+    def create_folders(self, location):
+        for country, city in location:
             city_path = self.output_path / country / city
             city_path.mkdir(parents=True, exist_ok=True)
 
@@ -115,7 +216,6 @@ class FileHandler:
             return True
         except ValueError:
             return False
-
 
 
 class AsyncFetch:
@@ -133,7 +233,6 @@ class AsyncFetch:
         with open("cache.json", "r") as fl:
             self.cache = json.load(fl)
         print(f"{len(self.cache)=}")
-
 
     def get(self) -> List[str]:
         """Function that creates loop and waits until all runs will be completed
