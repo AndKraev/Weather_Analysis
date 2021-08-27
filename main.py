@@ -1,10 +1,8 @@
 import asyncio
-import csv
 import json
 import os
 import random
 import shutil
-import string
 import tempfile
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -27,17 +25,11 @@ class FileHandler:
     def __del__(self):
         shutil.rmtree(self.temp_path)
 
-    def count_hotels(self):
+    def main(self):
         self.unzip_files()
-        result = self.read_csv()
-
-        for index, row in result.iterrows():
-            self.hotel_counter[row["Country"]][row["City"]] += 1
-
-        for country in self.hotel_counter.items():
-            print(country[1].most_common(1))
-        pd.set_option("display.max_columns", None)
-        print(result)
+        hotels = self.read_csv()
+        hotels = self.clear_rows(hotels)
+        print(self.count_hotels(hotels))
 
     def unzip_files(self):
         for file in self.input_path.iterdir():
@@ -46,26 +38,32 @@ class FileHandler:
                     archive.extractall(path=self.temp_path)
 
     def read_csv(self) -> pd.DataFrame:
-        hotels_df = pd.concat(
+        return pd.concat(
             [
-                pd.read_csv(file, usecols=[1, 2, 3, 4, 5])
-                for file in self.temp_path.iterdir()
-                if file.name.endswith(".csv")
+                pd.read_csv(f, usecols=[1, 2, 3, 4, 5])
+                for f in self.temp_path.iterdir()
+                if f.name.endswith(".csv")
             ]
-        ).dropna()
-        # Delete rows with non-float values in coordinates
-        hotels_df = hotels_df[hotels_df["Latitude"].apply(self.is_float)]
-        hotels_df = hotels_df[hotels_df["Longitude"].apply(self.is_float)]
+        )
 
-        # Convert coordinates to Float
-        hotels_df["Latitude"] = hotels_df["Latitude"].astype(float)
-        hotels_df["Longitude"] = hotels_df["Longitude"].astype(float)
+    def clear_rows(self, dataframe):
+        df = dataframe.dropna()
+
+        # Delete rows with non-float values in coordinates
+        df = df[df["Latitude"].apply(self.is_float)]
+        df = df[df["Longitude"].apply(self.is_float)]
 
         # Delete rows with wrong values in coordinates
-        hotels_df = hotels_df[hotels_df["Latitude"].apply(lambda x: abs(x) <= 90)]
-        hotels_df = hotels_df[hotels_df["Longitude"].apply(lambda x: abs(x) <= 180)]
+        df = df[df["Latitude"].apply(lambda x: abs(float(x)) <= 90)]
+        df = df[df["Longitude"].apply(lambda x: abs(float(x)) <= 180)]
 
-        return hotels_df
+        return df
+
+    def count_hotels(self, df):
+        for index, row in df.iterrows():
+            self.hotel_counter[row["Country"]][row["City"]] += 1
+
+        return {key: val.most_common(1)[0][0] for key, val in self.hotel_counter.items()}
 
     @staticmethod
     def is_float(string):
@@ -140,15 +138,9 @@ class AsyncFetch:
             except ValueError:
                 await asyncio.sleep(random.randint(1, 1))
 
-    @staticmethod
-    def get_random_string():
-        length = random.randint(10, 30)
-        symbols = string.printable
-        return "".join(random.choice(symbols) for _ in range(length))
-
 
 if __name__ == "__main__":
-    # hotels = FileHandler(r"D:\PyProjects\Weather_Analysis\Data")
-    # hotels.count_hotels()
+    test = FileHandler(r"D:\PyProjects\Weather_Analysis\Data")
+    test.main()
 
-    print(AsyncFetch(["45.787482, 4.7648"] * 1).get())
+    # print(AsyncFetch(["45.787482, 4.7648"] * 1).get())
