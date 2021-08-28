@@ -10,9 +10,11 @@ from Services import AsyncGetAPI, FileHandler, OpenWeather, PickPoint
 
 
 class WeatherAnalysis:
-    def __init__(self, input, output=None):
-        self.input_path = Path(input)
-        self.output_path = Path(output) if output else self.input_path / "Output"
+    def __init__(self, args):
+        self.input_path = args["indir"]
+        self.output_path = args["outdir"] if args["outdir"] else self.input_path / "Output"
+        self.max_hotels = args["hotels"]
+        self.threads = args["threads"]
         self.most_hotels = {}
         self.city_center = {}
         fh = FileHandler(self.input_path, self.output_path)
@@ -20,7 +22,7 @@ class WeatherAnalysis:
         self.count_hotels()
         self.get_most_dfs()
         self.get_city_centers()
-        self.city_weather = OpenWeather(self.city_center).results
+        self.city_weather = OpenWeather(self.city_center, self.threads).results
         fh.create_folders(self.most_hotels)
         self.create_charts()
         self.max_temp()
@@ -114,9 +116,12 @@ class WeatherAnalysis:
         return data[0][1], sorted(data[1], key=lambda x: x[2] - x[1])[-1][0]
 
     def hotels_to_csv(self):
-        hotels_df = pd.concat([df[:3] for df in self.most_hotels.values()])
+        hotels_df = pd.concat(
+            [df[:self.max_hotels] for df in self.most_hotels.values()]
+        )
         hotels_df["Address"] = PickPoint(
-            [(row["Latitude"], row["Longitude"]) for _, row in hotels_df.iterrows()]
+            [(row["Latitude"], row["Longitude"]) for _, row in hotels_df.iterrows()],
+            self.threads
         ).results
 
         for country, city in self.most_hotels:

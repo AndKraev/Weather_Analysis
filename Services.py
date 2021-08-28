@@ -71,12 +71,12 @@ class FileHandler:
 
 
 class PickPoint:
-    def __init__(self, locations, max_requests=None):
+    def __init__(self, locations, threads, max_requests=None):
         self.locations = locations
         self.max_requests = max_requests
         self.urls_list = self.create_api_ulr_list()
         self.results = self.sort_results(
-            AsyncGetAPI(self.urls_list, max_requests=self.max_requests).results
+            AsyncGetAPI(self.urls_list, threads, max_requests=self.max_requests).results
         )
 
     def create_api_ulr_list(self):
@@ -141,7 +141,7 @@ class OpenWeather(PickPoint):
 
 
 class AsyncGetAPI:
-    def __init__(self, url_list, max_treads=100, max_requests=None):
+    def __init__(self, url_list, max_treads, max_requests=None):
         self.url_list = url_list
         self.max_treads = max(max_treads, len(url_list))
         self.max_requests = max_requests
