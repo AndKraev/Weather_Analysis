@@ -4,30 +4,27 @@ from datetime import datetime
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import pandas as pd
 
-from Services import AsyncGeopy, AsyncOpenWeather, FileHandler
+from Services import AsyncGetAPI, FileHandler, OpenWeather, PickPoint
 
 
 class WeatherAnalysis:
-    def __init__(self, input_folder, output_folder=None):
-        self.input_path = Path(input_folder)
-        self.output_path = (
-            Path(output_folder) if output_folder else self.input_path / "Output"
-        )
+    def __init__(self, input, output=None):
+        self.input_path = Path(input)
+        self.output_path = Path(output) if output else self.input_path / "Output"
         self.most_hotels = {}
-        self.city_weather = {}
         self.city_center = {}
-
         fh = FileHandler(self.input_path, self.output_path)
         self.hotels_df = fh.hotels_df
         self.count_hotels()
         self.get_most_dfs()
         self.get_city_centers()
-        self.get_weather()
+        self.city_weather = OpenWeather(self.city_center).results
         fh.create_folders(self.most_hotels)
         self.create_charts()
         self.max_temp()
-        print("End")
+        self.hotels_to_csv()
 
     def count_hotels(self):
         hotel_counter = defaultdict(Counter)
@@ -53,29 +50,6 @@ class WeatherAnalysis:
             latitude = (df["Latitude"].min() + df["Latitude"].max()) / 2
             longitude = (df["Longitude"].min() + df["Longitude"].max()) / 2
             self.city_center[location] = (latitude, longitude)
-
-    def get_weather(self):
-        weather_list = AsyncOpenWeather(list(self.city_center.values())).get()
-
-        for ind, city in enumerate(self.city_center):
-            weather = weather_list[ind * 6]
-            self.city_weather[city] = [
-                (
-                    weather["daily"][day]["dt"],
-                    weather["daily"][day]["temp"]["min"],
-                    weather["daily"][day]["temp"]["max"],
-                )
-                for day in range(6)
-            ]
-
-            for day in range(1, 6):
-                weather = weather_list[ind * 6 + day]
-                temp = [w["temp"] for w in weather["hourly"]]
-                self.city_weather[city].append(
-                    (weather["current"]["dt"], min(temp), max(temp))
-                )
-
-            self.city_weather[city].sort(key=lambda x: x[0])
 
     def create_charts(self):
         for country, city in self.most_hotels:
@@ -139,5 +113,21 @@ class WeatherAnalysis:
         data = sorted(data, key=lambda x: max(t[2] - t[1] for t in x[1]))[-1]
         return data[0][1], sorted(data[1], key=lambda x: x[2] - x[1])[-1][0]
 
-    # def update_df(self):
-    # filtered_hotels = filtered_hotels[["Name", 'Address', "Latitude", "Longitude"]]
+    def hotels_to_csv(self):
+        hotels_df = pd.concat([df[:3] for df in self.most_hotels.values()])
+        hotels_df["Address"] = PickPoint(
+            [(row["Latitude"], row["Longitude"]) for _, row in hotels_df.iterrows()]
+        ).results
+
+        for country, city in self.most_hotels:
+            city_df = hotels_df[
+                (hotels_df["Country"] == country) & (hotels_df["City"] == city)
+            ][["Name", "Address", "Latitude", "Longitude"]]
+            city_df.to_csv(
+                self.output_path / country / city / "Hotels.csv", index=False
+            )
+
+
+if __name__ == "__main__":
+    test = WeatherAnalysis(r"D:\PyProjects\Weather_Analysis\Data")
+    # print("End")

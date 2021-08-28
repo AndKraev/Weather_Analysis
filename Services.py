@@ -1,16 +1,13 @@
 import asyncio
 import os
-import random
 import shutil
 import tempfile
 import time
 from pathlib import Path
-from typing import List
 from zipfile import ZipFile, is_zipfile
 
 import aiohttp
 import pandas as pd
-from geopy import PickPoint, adapters
 
 
 class FileHandler:
@@ -23,8 +20,6 @@ class FileHandler:
         self.unzip_files()
         self.read_csv()
         self.clear_rows()
-
-        # self.create_folders()
 
     def __del__(self):
         shutil.rmtree(self.temp_path)
@@ -75,138 +70,129 @@ class FileHandler:
             return False
 
 
-class AsyncGeopy:
-    """Service class receives a list of urls and gets text from pages with async"""
-
-    def __init__(self, urls: List[str]) -> None:
-        """Construction method
-
-        :param urls: List of urls that will be fetched with async
-        :type urls: List of strings
-        :return: None
-        :rtype: NoneType
-        """
-        self.urls = urls
-
-    def get(self) -> List[str]:
-        """Function that creates loop and waits until all runs will be completed
-
-        :return: Returns list of received texts from pages with
-        :rtype: List of strings
-        """
-        loop = asyncio.get_event_loop()
-        pages = loop.run_until_complete(self.main(loop))
-        return pages
-
-    async def main(self, loop: "loop") -> "loop":
-        """Function that creates tasks and waits for results to gather
-
-        :param loop: Object loop
-        :type loop: Object
-        :return: Finished loop
-        :rtype: Loop
-        """
-
-        tasks = [self.fetch(url) for url in self.urls]
-        results = await asyncio.gather(*tasks)
-        return results
-
-    @staticmethod
-    async def fetch(url: str) -> str:
-        """Static method that fetches text from received url
-
-        :param url: Url that will be fetched
-        :type url: String
-        :return: Returns received text from url
-        :rtype: String
-        """
-        for _ in range(10):
-            try:
-                async with PickPoint(
-                    api_key=os.environ["PickPoint_API"],
-                    adapter_factory=adapters.AioHTTPAdapter,
-                ) as geolocator:
-                    result = await geolocator.reverse(url).address
-                    return result
-            except:
-                await asyncio.sleep(random.randint(1, 3))
-
-
-class AsyncOpenWeather:
-    """Service class receives a list of urls and gets text from pages with async"""
-
-    def __init__(self, coordinate_list, history_days=5, max_requests=60) -> None:
-        """Construction method
-
-        :param coordinate_list: List of urls that will be fetched with async
-        :type coordinate_list: List of strings
-        :return: None
-        :rtype: NoneType
-        """
-        self.coordinate_list = coordinate_list
-        self.history_days = history_days
+class PickPoint:
+    def __init__(self, locations, max_requests=None):
+        self.locations = locations
         self.max_requests = max_requests
-        self.requests_count = 0
-        self.api_key = os.environ["OpenWeather_API"]
-        self.now = int(time.time())
-        self.urls = []
-        self.create_urls()
+        self.urls_list = self.create_api_ulr_list()
+        self.results = self.sort_results(
+            AsyncGetAPI(self.urls_list, max_requests=self.max_requests).results
+        )
 
-    def get(self) -> List[str]:
-        """Function that creates loop and waits until all runs will be completed
+    def create_api_ulr_list(self):
+        api = os.environ["PickPoint_API"]
+        return [
+            f"https://api.pickpoint.io/v1/reverse/?key={api}&lat={lat}&lon={lon}"
+            f"&accept-language=en-US"
+            for lat, lon in self.locations
+        ]
 
-        :return: Returns list of received texts from pages with
-        :rtype: List of strings
-        """
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(self.main(loop))
+    def sort_results(self, results):
+        return [results[url]["display_name"] for url in self.urls_list]
 
-    async def main(self, loop: "loop") -> "loop":
-        """Function that creates tasks and waits for results to gather
 
-        :param loop: Object loop
-        :type loop: Object
-        :return: Finished loop
-        :rtype: Loop
-        """
-        async with aiohttp.ClientSession(loop=loop) as session:
-            tasks = [self.fetch(session, url) for url in self.urls]
-            results = await asyncio.gather(*tasks)
-            return results
+class OpenWeather(PickPoint):
+    def create_api_ulr_list(self):
+        self.max_requests = 60
+        api = os.environ["OpenWeather_API"]
+        now = int(time.time())
+        urls_list = []
 
-    def create_urls(self):
-
-        for loc in self.coordinate_list:
-            self.urls.append(
+        for lat, lon in self.locations.values():
+            urls_list.append(
                 f"https://api.openweathermap.org/data/2.5/onecall?"
-                f"lat={loc[0]}&lon={loc[1]}&exclude=hourly,minutely,"
-                f"alerts&units=metric&appid={self.api_key}"
+                f"lat={lat}&lon={lon}&exclude=hourly,minutely,"
+                f"alerts&units=metric&appid={api}"
             )
 
-            for days in range(1, self.history_days + 1):
-                get_time = self.now - 86400 * days
-                self.urls.append(
+            for days in range(1, 6):
+                date_time = now - 86400 * days
+                urls_list.append(
                     f"http://api.openweathermap.org/data/2.5/onecall/"
-                    f"timemachine?lat={loc[0]}&lon={loc[1]}&dt={get_time}"
-                    f"&units=metric&appid={self.api_key}"
+                    f"timemachine?lat={lat}&lon={lon}&dt={date_time}"
+                    f"&units=metric&appid={api}"
                 )
 
-    async def fetch(self, session: "session", url: str) -> str:
-        """Static method that fetches text from received url
+        return urls_list
 
-        :param url: Url that will be fetched
-        :type url: String
-        :return: Returns received text from url
-        :rtype: String
-        """
-        for try_ in range(10):
+    def sort_results(self, results):
+        sorted_weather = [results[url] for url in self.urls_list]
+        all_results = {}
+
+        for num, location in enumerate(self.locations):
+            city_weather_list = sorted_weather[num * 6 : (num + 1) * 6]
+            city_result = [
+                (
+                    city_weather_list[0]["daily"][day]["dt"],
+                    city_weather_list[0]["daily"][day]["temp"]["min"],
+                    city_weather_list[0]["daily"][day]["temp"]["max"],
+                )
+                for day in range(6)
+            ]
+
+            for day in range(1, 6):
+                weather = city_weather_list[day]
+                temp = [w["temp"] for w in weather["hourly"]]
+                city_result.append((weather["current"]["dt"], min(temp), max(temp)))
+
+            all_results[location] = sorted(city_result, key=lambda x: x[0])
+
+        return all_results
+
+
+class AsyncGetAPI:
+    def __init__(self, url_list, max_treads=100, max_requests=None):
+        self.url_list = url_list
+        self.max_treads = max(max_treads, len(url_list))
+        self.max_requests = max_requests
+        self.requests_count = 0
+        self.results = {}
+
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self.main(loop))
+
+    async def main(self, loop):
+        queue = asyncio.Queue()
+
+        for url in self.url_list:
+            queue.put_nowait(url)
+
+        async with aiohttp.ClientSession(loop=loop) as session:
+            workers = [
+                asyncio.create_task(self.worker(queue, session))
+                for _ in range(self.max_treads)
+            ]
+            await queue.join()
+
+            for worker in workers:
+                worker.cancel()
+
+            await asyncio.gather(*workers, return_exceptions=True)
+
+    async def worker(self, queue, session):
+        while True:
+            url = await queue.get()
+            await self.fetch(url, session)
+            queue.task_done()
+
+    async def fetch(self, url, session):
+        for tries in range(10):
             if self.requests_count == self.max_requests:
-                self.requests_count = 0
                 time.sleep(60)
+                self.requests_count = 0
+
+            self.requests_count += 1
 
             try:
-                self.requests_count += 1
                 async with session.get(url) as response:
-                    return await response.json()
+                    self.results[url] = await response.json()
+                    break
             except:
                 await asyncio.sleep(1)
+
+
+if __name__ == "__main__":
+    c = [(59.53732843321865, 34.02956211486147)]
+    w = {"London": (59.53732843321865, 34.02956211486147)}
+    print(PickPoint(c).results)
+    print(OpenWeather(w).results)
