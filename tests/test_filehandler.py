@@ -32,3 +32,21 @@ def test_filehandler_read_and_concat_csv(filehandler):
 def test_filehandler_clear_rows(filehandler):
     fl = filehandler
     assert len(fl.hotels_df) == 2302
+
+
+def test_filehandler_create_folders(filehandler):
+    locations = [("US", "Boston"), ("FR", "Paris")]
+    fl = filehandler
+    fl.create_folders(locations)
+    assert (fl.output_path / "US" / "Boston").exists()
+    assert (fl.output_path / "FR" / "Paris").exists()
+
+
+@pytest.mark.parametrize("num", ["5", "0", "2.5", "235.154"])
+def test_filehandler_is_float_true(num):
+    assert FileHandler.is_float(num)
+
+
+@pytest.mark.parametrize("num", ["5a", "2,5", "asd4.5"])
+def test_filehandler_is_float_false(num):
+    assert not FileHandler.is_float(num)
