@@ -10,11 +10,11 @@ from Services import AsyncGetAPI, FileHandler, OpenWeather, PickPoint
 
 
 class WeatherAnalysis:
-    def __init__(self, args):
-        self.input_path = args["indir"]
-        self.output_path = args["outdir"] if args["outdir"] else self.input_path / "Output"
-        self.max_hotels = args["hotels"]
-        self.threads = args["threads"]
+    def __init__(self, indir, outdir=None, max_hotels=3, threads=100):
+        self.input_path = Path(indir)
+        self.output_path = Path(outdir) if outdir else self.input_path / "Output"
+        self.max_hotels = max_hotels
+        self.threads = threads
         self.most_hotels = {}
         self.city_center = {}
         fh = FileHandler(self.input_path, self.output_path)
