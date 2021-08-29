@@ -15,31 +15,27 @@ class WeatherAnalysis:
         self.output_path = Path(outdir) if outdir else self.input_path / "Output"
         self.max_hotels = max_hotels
         self.threads = threads
-        self.most_hotels = {}
-        self.city_center = {}
+
         fh = FileHandler(self.input_path, self.output_path)
         self.hotels_df = fh.hotels_df
-        self.count_hotels()
+        self.most_hotels = self.find_cities_with_most_hotels()
         self.get_most_dfs()
-        self.get_city_centers()
+        self.city_center = self.get_city_centers()
         self.city_weather = OpenWeather(self.city_center, self.threads).results
         fh.create_folders(self.most_hotels)
         self.create_charts()
-        self.max_temp()
+        self.create_json_wth_analysis()
         self.hotels_to_csv()
 
-    def count_hotels(self):
+    def find_cities_with_most_hotels(self):
         hotel_counter = defaultdict(Counter)
 
         for index, row in self.hotels_df.iterrows():
             hotel_counter[row["Country"]][row["City"]] += 1
 
-        self.most_hotels.update(
-            {
-                (key, val.most_common(1)[0][0]): None
-                for key, val in hotel_counter.items()
-            }
-        )
+        return {
+            (key, val.most_common(1)[0][0]): None for key, val in hotel_counter.items()
+        }
 
     def get_most_dfs(self):
         for country, city in self.most_hotels:
@@ -48,10 +44,14 @@ class WeatherAnalysis:
             self.most_hotels[(country, city)] = filtered_hotels
 
     def get_city_centers(self):
+        city_centers = {}
+
         for location, df in self.most_hotels.items():
             latitude = (df["Latitude"].min() + df["Latitude"].max()) / 2
             longitude = (df["Longitude"].min() + df["Longitude"].max()) / 2
-            self.city_center[location] = (latitude, longitude)
+            city_centers[location] = (latitude, longitude)
+
+        return city_centers
 
     def create_charts(self):
         for country, city in self.most_hotels:
@@ -67,7 +67,7 @@ class WeatherAnalysis:
             )
             fig.savefig(self.output_path / country / city / "chart.png")
 
-    def max_temp(self):
+    def create_json_wth_analysis(self):
         weather = list(self.city_weather.items())
         max_temp_city, max_temp_date = self.max_temp_city(weather)
         min_temp_city, min_temp_date = self.min_temp_city(weather)
@@ -117,11 +117,11 @@ class WeatherAnalysis:
 
     def hotels_to_csv(self):
         hotels_df = pd.concat(
-            [df[:self.max_hotels] for df in self.most_hotels.values()]
+            [df[: self.max_hotels] for df in self.most_hotels.values()]
         )
         hotels_df["Address"] = PickPoint(
             [(row["Latitude"], row["Longitude"]) for _, row in hotels_df.iterrows()],
-            self.threads
+            self.threads,
         ).results
 
         for country, city in self.most_hotels:

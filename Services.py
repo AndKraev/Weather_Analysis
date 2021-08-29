@@ -9,16 +9,16 @@ from zipfile import ZipFile, is_zipfile
 import aiohttp
 import pandas as pd
 
+import Setup
+
 
 class FileHandler:
     def __init__(self, input_folder, output_folder=None):
         self.input_path = input_folder
         self.output_path = output_folder
         self.temp_path = Path(tempfile.mkdtemp())
-        self.hotels_df = None
-
         self.unzip_files()
-        self.read_csv()
+        self.hotels_df = self.read_csv()
         self.clear_rows()
 
     def __del__(self):
@@ -31,7 +31,7 @@ class FileHandler:
                     archive.extractall(path=self.temp_path)
 
     def read_csv(self):
-        self.hotels_df = pd.concat(
+        return pd.concat(
             [
                 pd.read_csv(f, usecols=[1, 2, 3, 4, 5])
                 for f in self.temp_path.iterdir()
@@ -80,7 +80,7 @@ class PickPoint:
         )
 
     def create_api_ulr_list(self):
-        api = os.environ["PickPoint_API"]
+        api = Setup.pickpoint_api
         return [
             f"https://api.pickpoint.io/v1/reverse/?key={api}&lat={lat}&lon={lon}"
             f"&accept-language=en-US"
@@ -94,7 +94,7 @@ class PickPoint:
 class OpenWeather(PickPoint):
     def create_api_ulr_list(self):
         self.max_requests = 60
-        api = os.environ["OpenWeather_API"]
+        api = Setup.openweather_api
         now = int(time.time())
         urls_list = []
 
