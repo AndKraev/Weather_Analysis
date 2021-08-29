@@ -105,7 +105,9 @@ class OpenWeather(PickPoint):
     def run(self):
         self.urls_list = self.create_api_ulr_list()
         self.results = self.sort_results(
-            AsyncGetAPI(self.urls_list, self.threads, max_requests=self.max_requests).results
+            AsyncGetAPI(
+                self.urls_list, self.threads, max_requests=self.max_requests
+            ).results
         )
 
     def create_api_ulr_list(self):
