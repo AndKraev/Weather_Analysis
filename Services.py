@@ -22,7 +22,10 @@ class FileHandler:
         self.clear_rows()
 
     def __del__(self):
-        shutil.rmtree(self.temp_path)
+        try:
+            shutil.rmtree(self.temp_path)
+        except FileNotFoundError:
+            pass
 
     def unzip_files(self):
         for file in self.input_path.iterdir():
