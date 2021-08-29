@@ -197,5 +197,5 @@ class AsyncGetAPI:
 if __name__ == "__main__":
     c = [(59.53732843321865, 34.02956211486147)]
     w = {"London": (59.53732843321865, 34.02956211486147)}
-    print(PickPoint(c).results)
-    print(OpenWeather(w).results)
+    # print(PickPoint(c).results)
+    print(OpenWeather(w, 100).results)
