@@ -15,7 +15,12 @@ class WeatherAnalysis:
         self.output_path = Path(outdir) if outdir else self.input_path / "Output"
         self.max_hotels = max_hotels
         self.threads = threads
+        self.hotels_df = None
+        self.most_hotels = None
+        self.city_center = None
+        self.city_weather = None
 
+    def run(self):
         fh = FileHandler(self.input_path, self.output_path)
         self.hotels_df = fh.hotels_df
         self.most_hotels = self.find_cities_with_most_hotels()
@@ -100,8 +105,8 @@ class WeatherAnalysis:
 
     @staticmethod
     def min_temp_city(data):
-        data = sorted(data, key=lambda x: max(t[1] for t in x[1]))[0]
-        return data[0][1], sorted(data[1], key=lambda x: x[2])[0][0]
+        data = sorted(data, key=lambda x: min(t[1] for t in x[1]))[0]
+        return data[0][1], sorted(data[1], key=lambda x: x[1])[0][0]
 
     @staticmethod
     def delta_max_temp(data):
@@ -134,5 +139,5 @@ class WeatherAnalysis:
 
 
 if __name__ == "__main__":
-    test = WeatherAnalysis(r"D:\PyProjects\Weather_Analysis\tests\Data")
+    test = WeatherAnalysis(r"D:\PyProjects\Weather_Analysis\tests\Data").run()
     # print("End")
