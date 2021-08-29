@@ -122,12 +122,14 @@ class WeatherAnalysis:
 
     def hotels_to_csv(self):
         hotels_df = pd.concat(
-            [df[: self.max_hotels] for df in self.most_hotels.values()]
+            [df[:self.max_hotels] for df in self.most_hotels.values()]
         )
-        hotels_df["Address"] = PickPoint(
+        addresses = PickPoint(
             [(row["Latitude"], row["Longitude"]) for _, row in hotels_df.iterrows()],
             self.threads,
         ).results
+
+        hotels_df["Address"] = addresses
 
         for country, city in self.most_hotels:
             city_df = hotels_df[
