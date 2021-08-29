@@ -13,7 +13,7 @@ import Setup
 
 
 class FileHandler:
-    def __init__(self, input_folder, output_folder=None):
+    def __init__(self, input_folder, output_folder):
         self.input_path = input_folder
         self.output_path = output_folder
         self.temp_path = Path(tempfile.mkdtemp())
