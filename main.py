@@ -2,9 +2,10 @@ import argparse
 from pathlib import Path
 
 from WeatherAnalysis import WeatherAnalysis
+import sys
 
 
-def command_line_parser():
+def command_line_parser(args):
     parser = argparse.ArgumentParser(
         prog="Incredible Hotel Weather Analyzer",
         description="""Unzips csv files from the input
@@ -38,17 +39,17 @@ def command_line_parser():
         help="a maximum number of hotels to be written (default=100)",
     )
 
-    return vars(parser.parse_args())
+    return parser.parse_args(args)
 
 
 if __name__ == "__main__":
-    args = command_line_parser()
+    parser = command_line_parser(sys.argv[1:])
 
     WeatherAnalysis(
-        indir=args["indir"],
-        outdir=args["outdir"],
-        max_hotels=args["hotels"],
-        threads=args["threads"],
+        indir=parser["indir"],
+        outdir=parser["outdir"],
+        max_hotels=parser["hotels"],
+        threads=parser["threads"],
     ).run()
 
     print("Completed!")
