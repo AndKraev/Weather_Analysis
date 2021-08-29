@@ -23,5 +23,5 @@ def mocked_response(*args, **kwargs):
 def test_asyncgetapi_result(monkeypatch):
     monkeypatch.setattr("aiohttp.ClientSession.get", mocked_response)
     urls = ["url1", "url2", "url3"]
-    expected = {'url1': 'Text of url1', 'url2': 'Text of url2', 'url3': 'Text of url3'}
+    expected = {"url1": "Text of url1", "url2": "Text of url2", "url3": "Text of url3"}
     assert AsyncGetAPI(urls, 100).results == expected

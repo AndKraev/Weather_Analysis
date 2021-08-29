@@ -95,8 +95,20 @@ class PickPoint:
 
 
 class OpenWeather(PickPoint):
+    def __init__(self, locations, threads, max_requests=60):
+        self.max_requests = max_requests
+        self.locations = locations
+        self.max_requests = max_requests
+        self.threads = threads
+        self.run()
+
+    def run(self):
+        self.urls_list = self.create_api_ulr_list()
+        self.results = self.sort_results(
+            AsyncGetAPI(self.urls_list, self.threads, max_requests=self.max_requests).results
+        )
+
     def create_api_ulr_list(self):
-        self.max_requests = 60
         api = Setup.openweather_api
         now = int(time.time())
         urls_list = []

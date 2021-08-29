@@ -1,15 +1,17 @@
 from unittest import mock
 
-from Services import PickPoint
 import Setup
+from Services import PickPoint
 
 
 @mock.patch("Services.AsyncGetAPI")
 def test_pickpoint_url_lists(AsyncGetAPI):
     lat, lon = 12.21, 21.12
     api = Setup.pickpoint_api
-    expected = [f'https://api.pickpoint.io/v1/reverse/?key={api}'
-                f'&lat={lat}&lon={lon}&accept-language=en-US']
+    expected = [
+        f"https://api.pickpoint.io/v1/reverse/?key={api}"
+        f"&lat={lat}&lon={lon}&accept-language=en-US"
+    ]
     assert PickPoint([(lat, lon)], threads=100).create_api_ulr_list() == expected
 
 
@@ -22,4 +24,3 @@ def test_pickpoint_sort_results(AsyncGetAPI):
     )
     expected = ["data1", "data2"]
     assert result == expected
-
