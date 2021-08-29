@@ -49,6 +49,6 @@ if __name__ == "__main__":
         outdir=args["outdir"],
         max_hotels=args["hotels"],
         threads=args["threads"],
-    )
+    ).run()
 
     print("Completed!")
