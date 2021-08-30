@@ -75,7 +75,26 @@ class FileHandler:
 
 
 class PickPoint:
-    def __init__(self, locations, threads, max_requests=None):
+    """A class for working with PickPoint API to get addresses for coordinates.
+    Receives a list of tuples with latitude and longitude. Creates url addresses to
+    PickPoint servers and forwards this list of urls to AsyncGetAPI to obtain data.
+    Once receives results it creates list of results ordered by an order of received
+    locations and stores it in results attribute"""
+
+    def __init__(self, locations: List[tuple[float, float]], threads: int, max_requests: int = None):
+        """Initialize method which runs work and fetches data within AsyncGetAPI
+
+        :param locations: A list of tuples with coordinates where the first float if
+        latitude and the second float is longitude of place to fetch an address
+        :type locations: A list of tuples with floats.
+        :param threads: Maximum number of threads that will be used when AsyncGetAPI
+        will be called.
+        :type threads: Integer
+        :param max_requests: Maximum number of requests in a minute that will be used
+        when AsyncGetAPI will be called.
+        :return: None
+        :rtype: NoneType
+        """
         self.locations = locations
         self.max_requests = max_requests
         self.urls_list = self.create_api_ulr_list()
@@ -83,7 +102,14 @@ class PickPoint:
             AsyncGetAPI(self.urls_list, threads, max_requests=self.max_requests).results
         )
 
-    def create_api_ulr_list(self):
+    def create_api_ulr_list(self) -> List[str]:
+        """Creates a list of urls for fetching data from PickPoint servers from a list
+        of tuples with coordinates. Takes API key from Setup.py. So the key must be
+        filled in.
+
+        :return: List with urls to use with AsyncGetAPI
+        :rtype: List with strings
+        """
         api = Setup.pickpoint_api
         return [
             f"https://api.pickpoint.io/v1/reverse/?key={api}&lat={lat}&lon={lon}"
@@ -91,7 +117,15 @@ class PickPoint:
             for lat, lon in self.locations
         ]
 
-    def sort_results(self, results):
+    def sort_results(self, results: dict) -> List:
+        """Creates a list from AsyncGetAPI ordered by an order of locations that were
+        received.
+
+        :param results: Results that were obtained from AsyncGetAPI
+        :type results: Dictionary
+        :return: A list of results from AsyncGetAPI ordered by an order of locations
+        :rtype: List
+        """
         return [results[url]["display_name"] for url in self.urls_list]
 
 
