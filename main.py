@@ -5,7 +5,7 @@ from pathlib import Path
 from WeatherAnalysis import WeatherAnalysis
 
 
-def command_line_parser(args):
+def arg_parser(args):
     parser = argparse.ArgumentParser(
         prog="Incredible Hotel Weather Analyzer",
         description="""Unzips csv files from the input
@@ -43,7 +43,7 @@ def command_line_parser(args):
 
 
 if __name__ == "__main__":
-    parser = vars(command_line_parser(sys.argv[1:]))
+    parser = vars(arg_parser(sys.argv[1:]))
 
     WeatherAnalysis(
         indir=parser["indir"],

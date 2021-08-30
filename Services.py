@@ -101,7 +101,7 @@ class FileHandler:
 
         self.hotels_df = df
 
-    def create_folders(self, location: Dict) -> None:
+    def create_folders(self, location: dict) -> None:
         """Creates folders with countries and cities from tuple key of a dictionary
         with pattern: country / city
 
@@ -261,7 +261,7 @@ class OpenWeather:
 
         return urls_list
 
-    def sort_results(self, results: Dict[tuple]) -> Dict[tuple]:
+    def sort_results(self, results: Dict[tuple, List[dict]]) -> Dict[tuple, List[tuple]]:
         """Creates a dictionary from AsyncGetAPI results where keys are locations and
         values are temperatures with a datetime.
 
