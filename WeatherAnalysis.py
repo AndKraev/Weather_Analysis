@@ -1,224 +1,171 @@
-"""
-Contains WeatherAnalysis class with a business logic
-"""
-
 import json
-from collections import Counter, defaultdict
+from collections import defaultdict, Counter
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
 
-import matplotlib.pyplot as plt
 import pandas as pd
+import matplotlib.pyplot as plt
 
-from Services import AsyncGetAPI, FileHandler, OpenWeather, PickPoint
+from Services import FileHandler, OpenWeather, PickPoint
 
 
-class WeatherAnalysis:
-    """Reads csv files from zip files with FileHandler class, find cities with most
-    hotels, find center location for each city between hotels to fetch weather for
-    each location with OpenWeather class, creates folders for each city with most
-    hotels with a patter outdir / country / city, creates image png files with charts
-    for each folder and csv file with hotel list and their addresses fetched from
-    PickPoint class. Finally creates JSON file in output folder with next data: city
-    and data with maximum temperature, city and data with minimum temperature,
-    city with machine delta between maximum temperatures, city and data with maximum
-    delta between minimum and maximum temperature"""
+@dataclass
+class City:
+    name: str
+    country: str
+    hotels: pd.DataFrame
+    latitude: float = None
+    longitude: float = None
+    weather: list = None
 
-    def __init__(self, indir: str, outdir: str = None, max_hotels: int = 3, threads: int = 100) -> None:
-        """Initialize method
+    def __post_init__(self):
+        self.latitude = (self.hotels["Latitude"].min() + self.hotels[
+            "Latitude"].max()) / 2
+        self.longitude = (self.hotels["Longitude"].min() + self.hotels[
+            "Longitude"].max()) / 2
 
-        :param indir: Input directory with zip files
-        :type indir: String
-        :param outdir: Output folder for results. By default is none and creates
-        "Output" folder in input folder.
-        :type outdir: String
-        :return: None
-        :rtype: NoneType
-        """
-        self.input_path = Path(indir)
-        self.output_path = Path(outdir) if outdir else self.input_path / "Output"
-        self.max_hotels = max_hotels
-        self.threads = threads
-        self.hotels_df = None
-        self.most_hotels = None
-        self.city_center = None
-        self.city_weather = None
 
-    def run(self) -> None:
-        """Runs class to execute code
+@dataclass
+class TempData:
+    temp: float = float("-inf")
+    date: int = None
+    city: str = None
 
-        :return: None
-        :rtype: NoneType
-        """
-        # Reads csv files with a FileHandler Class
-        fh = FileHandler(self.input_path, self.output_path)
-        self.hotels_df = fh.hotels_df
 
-        # Find cities with most number of hotels
-        self.most_hotels = self.find_cities_with_most_hotels()
-        self.get_most_dfs()
+class AnalyseWeather:
+    def __init__(self, input_folder, output_folder, max_workers):
+        self.input_folder = Path(input_folder)
+        self.output_folder = Path(output_folder)
+        self.max_workers = max_workers
+        self.all_hotels = None
+        self.hotels_counter = defaultdict(Counter)
+        self.cities = []
 
-        # Find city centers in cities with most hotels
-        self.city_center = self.get_city_centers()
+    def run(self):
+        all_hotels = FileHandler(self.input_folder, self.output_folder).hotels_df
+        self.count_hotels_in_cities(all_hotels)
+        self.build_cities_with_most_hotels(all_hotels)
 
-        # Get weather for the city centers
-        self.city_weather = OpenWeather(self.city_center, self.threads).results
+        self.create_output_folders()
 
-        # Create folders and write charts with temperature graphs, maximum weather
-        # values to JSON files, csv files with addresses
-        fh.create_folders(self.most_hotels)
-        self.create_charts()
-        self.create_json_wth_analysis()
-        self.hotels_to_csv()
+        self.fetch_city_weather()
+        self.find_cities_and_dates_with_top_temp_values()
+        self.create_temp_charts()
+        self.create_csv_files()
 
-    def find_cities_with_most_hotels(self) -> Dict[tuple, None]:
-        """Find cities with most number of hotels in each country and returns dictionary
-        where keys are tuples with county and city names and values are None to be
-        used in future
+    def count_hotels_in_cities(self, all_hotels):
+        for _, row in all_hotels.iterrows():
+            self.hotels_counter[row["Country"]][row["City"]] += 1
 
-        :return: Countries and cities with most hotels in each country
-        :rtype: Dictionary
-        """
-        hotel_counter = defaultdict(Counter)
-
-        for index, row in self.hotels_df.iterrows():
-            hotel_counter[row["Country"]][row["City"]] += 1
-
-        return {
-            (key, val.most_common(1)[0][0]): None for key, val in hotel_counter.items()
-        }
-
-    def get_most_dfs(self) -> None:
-        """Creates values for dictionary in the class attribute most_hotels. Values
-        are filtered Dataframes for each city and country.
-
-        :return: None
-        :rtype: NoneType
-        """
-        for country, city in self.most_hotels:
-            filtered_hotels = self.hotels_df[self.hotels_df["Country"] == country]
-            filtered_hotels = filtered_hotels[filtered_hotels["City"] == city]
-            self.most_hotels[(country, city)] = filtered_hotels
-
-    def get_city_centers(self) -> Dict[tuple, tuple]:
-        """Search for city centers in each city
-
-        :return: city center for each city
-        :rtype: dictionary with locations as keys and coordinates as values
-        """
-        city_centers = {}
-
-        for location, df in self.most_hotels.items():
-            latitude = (df["Latitude"].min() + df["Latitude"].max()) / 2
-            longitude = (df["Longitude"].min() + df["Longitude"].max()) / 2
-            city_centers[location] = (latitude, longitude)
-
-        return city_centers
-
-    def create_charts(self) -> None:
-        """Creates charts with maximum and minimum temperature for each city with most
-        hotels in each city folder
-
-        :return: None
-        :rtype: NoneType
-        """
-        for country, city in self.most_hotels:
-            fig = plt.figure()
-            weather = self.city_weather[(country, city)]
-            plt.plot(
-                [datetime.fromtimestamp(d[0]).strftime("%d.%m") for d in weather],
-                [d[1] for d in weather],
+    def build_cities_with_most_hotels(self, all_hotels):
+        for country, cities in self.hotels_counter.items():
+            city = cities.most_common(1)[0][0]
+            self.cities.append(
+                City(name=city, country=country,
+                     hotels=all_hotels[all_hotels["City"] == city])
             )
-            plt.plot(
-                [datetime.fromtimestamp(d[0]).strftime("%d.%m") for d in weather],
-                [d[2] for d in weather],
-            )
-            fig.savefig(self.output_path / country / city / "chart.png")
 
-    def create_json_wth_analysis(self) -> None:
-        """Creates JSON file in output folder with a next data:
-        -city and date with maximum temperature
-        -city and date with minimum temperature
-        -city with maximum delta between maximum temperatures
-        -city and date with maximum delta between maximum and minimum temperature
+    def fetch_city_weather(self):
+        weather_list = OpenWeather(
+            [(city.latitude, city.longitude) for city in self.cities],
+            threads=self.max_workers).results
 
-        :return: None
-        :rtype: NoneType
-        """
+        for city, weather in zip(self.cities, weather_list):
+            city.weather = weather
 
-        weather = list(self.city_weather.items())
-        max_temp_city, max_temp_date = self.max_temp_city(weather)
-        min_temp_city, min_temp_date = self.min_temp_city(weather)
-        delta_temp_city, delta_temp_date = self.delta_temp(weather)
-        delta_max_temp = self.delta_max_temp(weather)
+    def create_output_folders(self):
+        for city in self.cities:
+            Path(self.output_folder / city.country / city.name).mkdir(parents=True,
+                                                                      exist_ok=True)
+
+    def find_cities_and_dates_with_top_temp_values(self):
+        max_temp = TempData()
+        min_temp = TempData(temp=float("+inf"))
+        delta_max_temp = TempData()
+        delta_max_min_temp = TempData()
+
+        for city in self.cities:
+            city_max_temp = max([day[2] for day in city.weather])
+            city_min_temp = min([day[1] for day in city.weather])
+            city_delta_max_temp = city_max_temp - min([day[2] for day in city.weather])
+            city_delta_max_min_temp = max([day[2] - day[1] for day in city.weather])
+
+            if city_max_temp > max_temp.temp:
+                max_temp.temp = city_max_temp
+                max_temp.city = city.name
+                max_temp.date = sorted(city.weather, key=lambda x: x[2])[-1][0]
+
+            if city_min_temp < min_temp.temp:
+                min_temp.temp = city_min_temp
+                min_temp.city = city.name
+                min_temp.date = sorted(city.weather, key=lambda x: x[1])[0][0]
+
+            if city_delta_max_temp > delta_max_temp.temp:
+                delta_max_temp.temp = city_delta_max_temp
+                delta_max_temp.city = city.name
+
+            if city_delta_max_min_temp > delta_max_min_temp.temp:
+                delta_max_min_temp.temp = city_max_temp
+                delta_max_min_temp.city = city.name
+                delta_max_min_temp.date = sorted(
+                    city.weather, key=lambda x: x[2] - x[1]
+                )[-1][0]
+
+        self.create_json_with_analysis(
+            max_temp, min_temp, delta_max_temp, delta_max_min_temp
+        )
+
+    def create_json_with_analysis(self, max_temp, min_temp, delta_max_temp, delta_max_min_temp):
         data = {
             "Maximum Temperature": {
-                "City": max_temp_city,
-                "Date": datetime.fromtimestamp(max_temp_date).strftime("%d.%m.%Y"),
+                "City": max_temp.city,
+                "Date": datetime.fromtimestamp(max_temp.date).strftime("%d.%m.%Y"),
             },
             "Minimum Temperature": {
-                "City": min_temp_city,
-                "Date": datetime.fromtimestamp(min_temp_date).strftime("%d.%m.%Y"),
+                "City": min_temp.city,
+                "Date": datetime.fromtimestamp(min_temp.date).strftime("%d.%m.%Y"),
             },
             "Maximum delta of maximum temperatures": {
-                "City": delta_max_temp,
+                "City": delta_max_temp.city,
             },
             "Maximum delta of minimum and maximum temperatures": {
-                "City": delta_temp_city,
-                "Date": datetime.fromtimestamp(delta_temp_date).strftime("%d.%m.%Y"),
+                "City": delta_max_min_temp.city,
+                "Date": datetime.fromtimestamp(delta_max_min_temp.date).strftime("%d.%m.%Y"),
             },
         }
-        with open(self.output_path / "analysis.json", mode="w") as fl:
+
+        with open(self.output_folder / "analysis.json", mode="w") as fl:
             json.dump(data, fl, ensure_ascii=False, indent=4)
 
-    @staticmethod
-    def max_temp_city(data: List[tuple[tuple[tuple, List[int, float, float]]]]) -> tuple[str, tuple]:
-        """Finds city with maximum temperature
+    def create_temp_charts(self):
+        for city in self.cities:
+            fig = plt.figure()
 
-        :param data: Takes a list of tuples with tuples of cities and weather data
-        :
-        """
-        data = sorted(data, key=lambda x: max(t[2] for t in x[1]))[-1]
-        return data[0][1], sorted(data[1], key=lambda x: x[1])[-1][0]
+            for num in range(1, 3):
+                plt.plot(
+                    [datetime.fromtimestamp(d[0]).strftime("%d.%m") for d in
+                     city.weather],
+                    [d[num] for d in city.weather],
+                )
 
-    @staticmethod
-    def min_temp_city(data: List[tuple[int, float, float]]) -> tuple[str, tuple]:
-        data = sorted(data, key=lambda x: min(t[1] for t in x[1]))[0]
-        return data[0][1], sorted(data[1], key=lambda x: x[1])[0][0]
+            fig.savefig(self.output_folder / city.country / city.name / "chart.png")
 
-    @staticmethod
-    def delta_max_temp(data):
-        data = sorted(
-            data, key=lambda x: max(t[2] for t in x[1]) - min(t[2] for t in x[1])
-        )[-1]
-        return data[0][1]
-
-    @staticmethod
-    def delta_temp(data):
-        data = sorted(data, key=lambda x: max(t[2] - t[1] for t in x[1]))[-1]
-        return data[0][1], sorted(data[1], key=lambda x: x[2] - x[1])[-1][0]
-
-    def hotels_to_csv(self):
-        hotels_df = pd.concat(
-            [df[: self.max_hotels] for df in self.most_hotels.values()]
-        )
-        addresses = PickPoint(
-            [(row["Latitude"], row["Longitude"]) for _, row in hotels_df.iterrows()],
-            self.threads,
-        ).results
-
-        hotels_df["Address"] = addresses
-
-        for country, city in self.most_hotels:
-            city_df = hotels_df[
-                (hotels_df["Country"] == country) & (hotels_df["City"] == city)
-            ][["Name", "Address", "Latitude", "Longitude"]]
+    def create_csv_files(self):
+        all_hotels = pd.concat([city.hotels[:3] for city in self.cities])
+        addresses = PickPoint([(row["Latitude"], row["Longitude"]) for _, row in all_hotels.iterrows()], self.max_workers).results
+        all_hotels["Address"] = addresses
+        for city in self.cities:
+            city_df = all_hotels[
+                (all_hotels["Country"] == city.country) & (all_hotels["City"] == city.name)
+                ][["Name", "Address", "Latitude", "Longitude"]]
             city_df.to_csv(
-                self.output_path / country / city / "Hotels.csv", index=False
+                self.output_folder / city.country / city.name / "Hotels.csv", index=False
             )
 
 
-if __name__ == "__main__":
-    test = WeatherAnalysis(r"D:\PyProjects\Weather_Analysis\tests\Data").run()
-    # print("End")
+if __name__ == '__main__':
+    w = AnalyseWeather(r"D:\PyProjects\Weather_Analysis\tests\Data",
+                       r"D:\PyProjects\Weather_Analysis\tests\Data\Output1", 100)
+    w.run()
+    ...

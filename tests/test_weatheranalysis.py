@@ -81,7 +81,7 @@ def test_weatheranalysis_delta_temp():
 def test_weatheranalysis_create_json_wth_analysis(weatheranalysis):
     Path(weatheranalysis.output_path).mkdir(parents=True, exist_ok=True)
     weatheranalysis.city_weather = {("US", "Houston"): [(1, 8, 10), (2, 15, 20)]}
-    weatheranalysis.create_json_wth_analysis()
+    weatheranalysis.create_json_with_analysis()
     with open(weatheranalysis.output_path / "analysis.json", mode="r") as fl:
         result = json.load(fl)
     expected = {

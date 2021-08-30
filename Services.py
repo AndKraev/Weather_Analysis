@@ -101,19 +101,6 @@ class FileHandler:
 
         self.hotels_df = df
 
-    def create_folders(self, location: dict) -> None:
-        """Creates folders with countries and cities from tuple key of a dictionary
-        with pattern: country / city
-
-        :param location: Countries, Cities locations
-        :type location: Dictionary
-        :return: None
-        :rtype: NoneType
-        """
-        for country, city in location:
-            city_path = self.output_path / country / city
-            city_path.mkdir(parents=True, exist_ok=True)
-
     @staticmethod
     def is_float(string: str) -> bool:
         """Checks if string can be converted to float or not. Returns True if string
@@ -213,7 +200,7 @@ class OpenWeather:
         self.max_requests = max_requests
         self.threads = threads
         self.urls_list = []
-        self.results = {}
+        self.results = []
         self.run()
 
     def run(self) -> None:
@@ -244,7 +231,7 @@ class OpenWeather:
         now = int(time.time())
         urls_list = []
 
-        for lat, lon in self.locations.values():
+        for lat, lon in self.locations:
             urls_list.append(
                 f"https://api.openweathermap.org/data/2.5/onecall?"
                 f"lat={lat}&lon={lon}&exclude=hourly,minutely,"
@@ -272,7 +259,7 @@ class OpenWeather:
         """
 
         sorted_weather = [results[url] for url in self.urls_list]
-        all_results = {}
+        all_results = []
 
         for num, location in enumerate(self.locations):
             city_weather_list = sorted_weather[num * 6 : (num + 1) * 6]
@@ -290,7 +277,7 @@ class OpenWeather:
                 temp = [w["temp"] for w in weather["hourly"]]
                 city_result.append((weather["current"]["dt"], min(temp), max(temp)))
 
-            all_results[location] = sorted(city_result, key=lambda x: x[0])
+            all_results.append(sorted(city_result, key=lambda x: x[0]))
 
         return all_results
 
