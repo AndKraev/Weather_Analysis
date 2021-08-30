@@ -1,3 +1,8 @@
+"""
+Contains service classes to work with files, API and fetch
+asynchronously data from urls
+"""
+
 import asyncio
 import os
 import shutil
@@ -14,7 +19,20 @@ import Setup
 
 
 class FileHandler:
-    def __init__(self, input_folder, output_folder):
+    """Class to handle input files. Takes input and output folders, creates output,
+    creates temp folder and unzips archives with csv to a temp folder. Than reads all
+    csv files and concatenate to one DataFrame to store in hotels_df attribute."""
+
+    def __init__(self, input_folder: Path, output_folder: Path) -> None:
+        """Initialize method
+
+        :param input_folder: Input folder with zip files
+        :type input_folder: Path
+        :param output_folder: Output folder for results
+        :type output_folder: Path
+        :return: None
+        :rtype: NoneType
+        """
         self.input_path = input_folder
         self.output_path = output_folder
         self.temp_path = Path(tempfile.mkdtemp())
@@ -22,19 +40,36 @@ class FileHandler:
         self.hotels_df = self.read_csv()
         self.clear_rows()
 
-    def __del__(self):
+    def __del__(self) -> None:
+        """Delete temp folder after when instance is trashed
+
+        :return: None
+        :rtype: NoneType
+        """
         try:
             shutil.rmtree(self.temp_path)
         except FileNotFoundError:
             pass
 
-    def unzip_files(self):
+    def unzip_files(self) -> None:
+        """Search for zip files and unzip them to a temporary folder
+
+        :return: None
+        :rtype: NoneType
+        """
         for file in self.input_path.iterdir():
             if is_zipfile(file):
                 with ZipFile(file, mode="r") as archive:
                     archive.extractall(path=self.temp_path)
 
-    def read_csv(self):
+    def read_csv(self) -> pd.DataFrame:
+        """Read all csv files from the temporary folder and return concatenated pandas
+        DataFrame
+
+        :return: concatenated csv
+        :rtype: pd.DataFrame
+        """
+
         return pd.concat(
             [
                 pd.read_csv(f, usecols=[1, 2, 3, 4, 5])
@@ -43,7 +78,13 @@ class FileHandler:
             ]
         )
 
-    def clear_rows(self):
+    def clear_rows(self) -> None:
+        """Clears Dataframe from rows with blank or incorrect values and store result
+        in an attribute hotels_df
+
+        :return: None
+        :rtype: NoneType
+        """
         df = self.hotels_df.dropna()
 
         # Delete rows with non-float values in coordinates
@@ -60,13 +101,29 @@ class FileHandler:
 
         self.hotels_df = df
 
-    def create_folders(self, location):
+    def create_folders(self, location: Dict) -> None:
+        """Creates folders with countries and cities from tuple key of a dictionary
+        with pattern: country / city
+
+        :param location: Countries, Cities locations
+        :type location: Dictionary
+        :return: None
+        :rtype: NoneType
+        """
         for country, city in location:
             city_path = self.output_path / country / city
             city_path.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
-    def is_float(string):
+    def is_float(string: str) -> bool:
+        """Checks if string can be converted to float or not. Returns True if string
+        can be float
+
+        :param string: String for checking
+        :type string: String
+        :return: Return True if float, otherwise False
+        :rtype: bool
+        """
         try:
             float(string)
             return True
