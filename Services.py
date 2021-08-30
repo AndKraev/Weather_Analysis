@@ -4,6 +4,7 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
+from typing import List
 from zipfile import ZipFile, is_zipfile
 
 import aiohttp
@@ -158,9 +159,28 @@ class OpenWeather:
 
 
 class AsyncGetAPI:
-    def __init__(self, url_list, max_treads, max_requests=None):
+    """Class receives a list of urls and gets JSON responses with asyncio. The number
+    of threads is limited with a parameter max_workers or a number of ulrs that should
+    be parsed, takes the less. Results are stored in an attribute results as a
+    dictionary where keys are string urls and values a JSON responses. Maximum requests
+    in a minute may be set with a parameter max_requests (default is not limited)."""
+
+    def __init__(
+            self, url_list: List[str], max_workers: int, max_requests: int = None
+    ) -> None:
+        """Initialize method. Constructs instance and creates a loop.
+
+        :param url_list: List of urls that must be parsed
+        :type url_list: List with strings
+        :param max_workers: Number of workers that will be spawned
+        :type max_workers: Integer
+        :param max_requests:  Limit of requests in a minute (default if None)
+        :type max_requests: Integer
+        :return: None
+        :rtype: NoneType
+        """
         self.url_list = url_list
-        self.max_treads = max(max_treads, len(url_list))
+        self.max_treads = max(max_workers, len(url_list))
         self.max_requests = max_requests
         self.requests_count = 0
         self.results = {}
@@ -168,7 +188,16 @@ class AsyncGetAPI:
         loop = asyncio.get_event_loop()
         loop.run_until_complete(self.main(loop))
 
-    async def main(self, loop):
+    async def main(self, loop: asyncio.get_event_loop) -> None:
+        """Method that creates a queue with urls that must be parsed, creates workers
+        in accordance with a parameter max_threads and waits for all tasks to be
+        completed. One queue is empty it kills workers and waits until all is done.
+
+        :param loop: loop object
+        :type loop: asyncio.get_event_loop
+        :return: None
+        :rtype: NoneType
+        """
         queue = asyncio.Queue()
 
         for url in self.url_list:
@@ -186,13 +215,37 @@ class AsyncGetAPI:
 
             await asyncio.gather(*workers, return_exceptions=True)
 
-    async def worker(self, queue, session):
+    async def worker(
+            self, queue: asyncio.Queue, session: aiohttp.ClientSession
+    ) -> None:
+        """Method creates a worker that infinitely takes task one by one from queue,
+        forwards it to fetch method and waits for task to be completed
+
+        :param queue: A queue object from asyncio with url tasks
+        :type queue: asyncio.Queue
+        :param session: aiohttp session object
+        :type session: aiohttp.ClientSession
+        :return: None
+        :rtype: NoneType
+        """
         while True:
             url = await queue.get()
             await self.fetch(url, session)
             queue.task_done()
 
-    async def fetch(self, url, session):
+    async def fetch(self, url: str, session: aiohttp.ClientSession) -> None:
+        """Method that fetches json from url. It performs 10 tries before giving up
+        with a 1 second delay. If maximum number requests equal to maximum number of
+        requests, it sleeps for 60 seconds. Updates results attribute with a JSON
+        result.
+
+        :param url: A url for parse
+        :type url: String
+        :param session: aiohttp session object
+        :type session: aiohttp.ClientSession
+        :return: None
+        :rtype: NoneType
+        """
         for tries in range(10):
             if self.requests_count == self.max_requests:
                 time.sleep(60)
