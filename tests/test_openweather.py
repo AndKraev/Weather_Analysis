@@ -1,17 +1,19 @@
 import json
+from pathlib import Path
 from unittest.mock import Mock, patch
 
+import Services
 import Setup
 from Services import OpenWeather
 
 
-@patch("Services.AsyncGetAPI")
 @patch("time.time")
-def test_openweather_url_lists(AsyncGetAPI, time):
+@patch("Services.OpenWeather.run")
+def test_openweather_url_lists(run, time):
     lat, lon = 12.21, 21.12
-    OpenWeather.sort_results = Mock()
+    # OpenWeather.sort_results = Mock()
     api = Setup.openweather_api
-    time.return_value = Mock(return_value=0)
+    time.return_value = 0  # Mock(return_value=0)
     expected_urls = [
         f"https://api.openweathermap.org/data/2.5/onecall?lat={lat}"
         f"&lon={lon}&exclude=hourly,minutely,alerts&units=metric&"
@@ -21,7 +23,7 @@ def test_openweather_url_lists(AsyncGetAPI, time):
     expected_urls.extend(
         [
             f"http://api.openweathermap.org/data/2.5/onecall/"
-            f"timemachine?lat={lat}&lon={lon}&dt={-86400 * num + 1}"
+            f"timemachine?lat={lat}&lon={lon}&dt={-86400 * num}"
             f"&units=metric&appid={api}"
             for num in range(1, 6)
         ]
@@ -36,11 +38,10 @@ def test_openweather_url_lists(AsyncGetAPI, time):
 @patch("Services.OpenWeather.run")
 def test_openweather_sort_results(run):
     lat, lon = 12.21, 21.12
-    with open("openweather_responses.json", mode="r") as fl:
+    with open(Path("tests/openweather_responses.json"), mode="r") as fl:
         responses = json.load(fl)
     urls = [f"urls_{n}" for n in range(1, 7)]
     results = {url: response for url, response in zip(urls, responses)}
-
     ow = OpenWeather({"city": (lat, lon)}, threads=100)
     ow.urls_list = urls
     expected = {

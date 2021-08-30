@@ -1,8 +1,8 @@
 import argparse
+import sys
 from pathlib import Path
 
 from WeatherAnalysis import WeatherAnalysis
-import sys
 
 
 def command_line_parser(args):
@@ -43,7 +43,7 @@ def command_line_parser(args):
 
 
 if __name__ == "__main__":
-    parser = command_line_parser(sys.argv[1:])
+    parser = vars(command_line_parser(sys.argv[1:]))
 
     WeatherAnalysis(
         indir=parser["indir"],

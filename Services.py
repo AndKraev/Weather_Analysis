@@ -94,7 +94,7 @@ class PickPoint:
         return [results[url]["display_name"] for url in self.urls_list]
 
 
-class OpenWeather(PickPoint):
+class OpenWeather:
     def __init__(self, locations, threads, max_requests=60):
         self.max_requests = max_requests
         self.locations = locations
