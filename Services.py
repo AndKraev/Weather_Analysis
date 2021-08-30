@@ -4,7 +4,7 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
-from typing import List
+from typing import List, Dict
 from zipfile import ZipFile, is_zipfile
 
 import aiohttp
@@ -130,14 +130,43 @@ class PickPoint:
 
 
 class OpenWeather:
-    def __init__(self, locations, threads, max_requests=60):
+    """A class for working with OpenWeather API to get weather for coordinates:
+    current weather, 5 days forecast and history for 5 days before. Receives a list
+    of tuples with latitude and longitude. Creates url addresses to OpenWeather
+    servers and forwards this list of urls to AsyncGetAPI to obtain data. Once
+    receives results it creates a dictionary of results where keys are locations and
+    values are tuples with data and stores it in results attribute """
+
+    def __init__(self, locations: List[tuple[float, float]], threads: int, max_requests: int = 60):
+        """Initialize method which runs work.
+
+        :param locations: A list of tuples with coordinates where the first float if
+        latitude and the second float is longitude of place to fetch an address
+        :type locations: A list of tuples with floats.
+        :param threads: Maximum number of threads that will be used when AsyncGetAPI
+        will be called.
+        :type threads: Integer
+        :param max_requests: Maximum number of requests in a minute that will be used
+        when AsyncGetAPI will be called. By default is 60.
+        :return: None
+        :rtype: NoneType
+        """
         self.max_requests = max_requests
         self.locations = locations
         self.max_requests = max_requests
         self.threads = threads
+        self.urls_list = []
+        self.results = {}
         self.run()
 
-    def run(self):
+    def run(self) -> None:
+        """Calls create_api_ulr_list method to create a list of URLS, puts it to
+        AsyncGetAPI, sorts results with sort_results and puts them to an attribute
+        results
+
+        :return: None
+        :rtype: NoneType
+        """
         self.urls_list = self.create_api_ulr_list()
         self.results = self.sort_results(
             AsyncGetAPI(
@@ -145,7 +174,15 @@ class OpenWeather:
             ).results
         )
 
-    def create_api_ulr_list(self):
+    def create_api_ulr_list(self) -> List[str]:
+        """Creates a list of urls for fetching data from OpenWeather servers from a list
+        of tuples with coordinates. It creates 6 urls for each place: one url to get
+        current weather and a 5 days forecast and 5 urls to get history weather for each
+        day before. Takes API key from Setup.py. So the key must be filled in.
+
+        :return: List with urls to use with AsyncGetAPI
+        :rtype: List with strings
+        """
         api = Setup.openweather_api
         now = int(time.time())
         urls_list = []
@@ -167,7 +204,16 @@ class OpenWeather:
 
         return urls_list
 
-    def sort_results(self, results):
+    def sort_results(self, results: Dict[tuple]) -> Dict[tuple]:
+        """Creates a dictionary from AsyncGetAPI results where keys are locations and
+        values are temperatures with a datetime.
+
+        :param results: Results that were obtained from AsyncGetAPI
+        :type results: Dictionary
+        :return: A dictionary with results
+        :rtype: Dict
+        """
+
         sorted_weather = [results[url] for url in self.urls_list]
         all_results = {}
 
