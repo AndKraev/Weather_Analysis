@@ -20,10 +20,12 @@ class City:
     weather: list = None
 
     def __post_init__(self):
-        self.latitude = (self.hotels["Latitude"].min() + self.hotels[
-            "Latitude"].max()) / 2
-        self.longitude = (self.hotels["Longitude"].min() + self.hotels[
-            "Longitude"].max()) / 2
+        self.latitude = (
+            self.hotels["Latitude"].min() + self.hotels["Latitude"].max()
+        ) / 2
+        self.longitude = (
+            self.hotels["Longitude"].min() + self.hotels["Longitude"].max()
+        ) / 2
 
 
 @dataclass
@@ -33,11 +35,14 @@ class TempData:
     city: str = None
 
 
-class AnalyseWeather:
-    def __init__(self, input_folder, output_folder, max_workers):
+class WeatherAnalysis:
+    def __init__(self, input_folder, output_folder=None, max_workers=1000, max_hotels=100):
         self.input_folder = Path(input_folder)
-        self.output_folder = Path(output_folder)
+        self.output_folder = (
+            Path(output_folder) if output_folder else self.input_folder / "Output"
+        )
         self.max_workers = max_workers
+        self.max_hotels = max_hotels
         self.all_hotels = None
         self.hotels_counter = defaultdict(Counter)
         self.cities = []
@@ -62,22 +67,27 @@ class AnalyseWeather:
         for country, cities in self.hotels_counter.items():
             city = cities.most_common(1)[0][0]
             self.cities.append(
-                City(name=city, country=country,
-                     hotels=all_hotels[all_hotels["City"] == city])
+                City(
+                    name=city,
+                    country=country,
+                    hotels=all_hotels[all_hotels["City"] == city],
+                )
             )
 
     def fetch_city_weather(self):
         weather_list = OpenWeather(
             [(city.latitude, city.longitude) for city in self.cities],
-            threads=self.max_workers).results
+            threads=self.max_workers,
+        ).results
 
         for city, weather in zip(self.cities, weather_list):
             city.weather = weather
 
     def create_output_folders(self):
         for city in self.cities:
-            Path(self.output_folder / city.country / city.name).mkdir(parents=True,
-                                                                      exist_ok=True)
+            Path(self.output_folder / city.country / city.name).mkdir(
+                parents=True, exist_ok=True
+            )
 
     def find_cities_and_dates_with_top_temp_values(self):
         max_temp = TempData()
@@ -116,7 +126,9 @@ class AnalyseWeather:
             max_temp, min_temp, delta_max_temp, delta_max_min_temp
         )
 
-    def create_json_with_analysis(self, max_temp, min_temp, delta_max_temp, delta_max_min_temp):
+    def create_json_with_analysis(
+        self, max_temp, min_temp, delta_max_temp, delta_max_min_temp
+    ):
         data = {
             "Maximum Temperature": {
                 "City": max_temp.city,
@@ -131,7 +143,9 @@ class AnalyseWeather:
             },
             "Maximum delta of minimum and maximum temperatures": {
                 "City": delta_max_min_temp.city,
-                "Date": datetime.fromtimestamp(delta_max_min_temp.date).strftime("%d.%m.%Y"),
+                "Date": datetime.fromtimestamp(delta_max_min_temp.date).strftime(
+                    "%d.%m.%Y"
+                ),
             },
         }
 
@@ -144,28 +158,38 @@ class AnalyseWeather:
 
             for num in range(1, 3):
                 plt.plot(
-                    [datetime.fromtimestamp(d[0]).strftime("%d.%m") for d in
-                     city.weather],
+                    [
+                        datetime.fromtimestamp(d[0]).strftime("%d.%m")
+                        for d in city.weather
+                    ],
                     [d[num] for d in city.weather],
                 )
 
             fig.savefig(self.output_folder / city.country / city.name / "chart.png")
 
     def create_csv_files(self):
-        all_hotels = pd.concat([city.hotels[:3] for city in self.cities])
-        addresses = PickPoint([(row["Latitude"], row["Longitude"]) for _, row in all_hotels.iterrows()], self.max_workers).results
+        all_hotels = pd.concat([city.hotels[:self.max_hotels] for city in self.cities])
+        addresses = PickPoint(
+            [(row["Latitude"], row["Longitude"]) for _, row in all_hotels.iterrows()],
+            self.max_workers,
+        ).results
         all_hotels["Address"] = addresses
         for city in self.cities:
             city_df = all_hotels[
-                (all_hotels["Country"] == city.country) & (all_hotels["City"] == city.name)
-                ][["Name", "Address", "Latitude", "Longitude"]]
+                (all_hotels["Country"] == city.country)
+                & (all_hotels["City"] == city.name)
+            ][["Name", "Address", "Latitude", "Longitude"]]
             city_df.to_csv(
-                self.output_folder / city.country / city.name / "Hotels.csv", index=False
+                self.output_folder / city.country / city.name / "Hotels.csv",
+                index=False,
             )
 
 
-if __name__ == '__main__':
-    w = AnalyseWeather(r"D:\PyProjects\Weather_Analysis\tests\Data",
-                       r"D:\PyProjects\Weather_Analysis\tests\Data\Output1", 100)
+if __name__ == "__main__":
+    w = WeatherAnalysis(
+        r"D:\PyProjects\Weather_Analysis\tests\Data",
+        r"D:\PyProjects\Weather_Analysis\tests\Data\Output1",
+        100,
+    )
     w.run()
     ...

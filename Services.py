@@ -125,7 +125,12 @@ class PickPoint:
     Once receives results it creates list of results ordered by an order of received
     locations and stores it in results attribute"""
 
-    def __init__(self, locations: List[tuple[float, float]], threads: int, max_requests: int = None):
+    def __init__(
+        self,
+        locations: List[tuple[float, float]],
+        threads: int,
+        max_requests: int = None,
+    ):
         """Initialize method which runs work and fetches data within AsyncGetAPI
 
         :param locations: A list of tuples with coordinates where the first float if
@@ -179,9 +184,11 @@ class OpenWeather:
     of tuples with latitude and longitude. Creates url addresses to OpenWeather
     servers and forwards this list of urls to AsyncGetAPI to obtain data. Once
     receives results it creates a dictionary of results where keys are locations and
-    values are tuples with data and stores it in results attribute """
+    values are tuples with data and stores it in results attribute"""
 
-    def __init__(self, locations: List[tuple[float, float]], threads: int, max_requests: int = 60):
+    def __init__(
+        self, locations: List[tuple[float, float]], threads: int, max_requests: int = 60
+    ):
         """Initialize method which runs work.
 
         :param locations: A list of tuples with coordinates where the first float if
@@ -248,7 +255,9 @@ class OpenWeather:
 
         return urls_list
 
-    def sort_results(self, results: Dict[tuple, List[dict]]) -> Dict[tuple, List[tuple]]:
+    def sort_results(
+        self, results: Dict[tuple, List[dict]]
+    ) -> List[List[tuple[int, float, float]]]:
         """Creates a dictionary from AsyncGetAPI results where keys are locations and
         values are temperatures with a datetime.
 
@@ -290,7 +299,7 @@ class AsyncGetAPI:
     in a minute may be set with a parameter max_requests (default is not limited)."""
 
     def __init__(
-            self, url_list: List[str], max_workers: int, max_requests: int = None
+        self, url_list: List[str], max_workers: int, max_requests: int = None
     ) -> None:
         """Initialize method. Constructs instance and creates a loop.
 
@@ -340,7 +349,7 @@ class AsyncGetAPI:
             await asyncio.gather(*workers, return_exceptions=True)
 
     async def worker(
-            self, queue: asyncio.Queue, session: aiohttp.ClientSession
+        self, queue: asyncio.Queue, session: aiohttp.ClientSession
     ) -> None:
         """Method creates a worker that infinitely takes task one by one from queue,
         forwards it to fetch method and waits for task to be completed

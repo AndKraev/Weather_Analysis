@@ -1,13 +1,89 @@
-import json
-from pathlib import Path
-from unittest.mock import Mock, patch
+from collections import defaultdict, Counter
+from copy import deepcopy
+from unittest.mock import patch, Mock
 
 import pandas as pd
 import pytest
 
-from WeatherAnalysis import WeatherAnalysis
+from WeatherAnalysis import City, TempData, WeatherAnalysis
 
 
+@pytest.fixture
+def analyser(tmp_path):
+    tmp = tmp_path
+    return WeatherAnalysis(tmp)
+
+
+@pytest.fixture
+def hotels():
+    return pd.DataFrame({"Country": ["FR", "FR", "FR"],
+                         "City": ["Paris", "Marseille", "Paris"],
+                         "Latitude": [2, 4, 8],
+                         "Longitude": [4, 6, 10]})
+
+
+@pytest.fixture()
+def city(hotels):
+    return City(name="Paris", country="FR", hotels=hotels, weather=[1])
+
+
+def test_dataclass_city(city, hotels):
+    assert city.name == "Paris"
+    assert city.country == "FR"
+    assert city.hotels.equals(hotels)
+    assert city.latitude == 5
+    assert city.longitude == 7
+    assert city.weather == [1]
+
+
+def test_dataclass_tempdata():
+    t = TempData(date=1, city="A")
+    assert t.city == "A"
+    assert t.date == 1
+    assert t.temp == float("-inf")
+
+
+def test_weatheranalysis_count_hotels_in_cities(analyser, hotels):
+    analyser.count_hotels_in_cities(pd.DataFrame(hotels))
+    expected = defaultdict(Counter, {'FR': Counter({'Paris': 2, 'Marseille': 1})})
+    assert analyser.hotels_counter == expected
+
+
+def test_weatheranalysis_build_cities_with_most_hotels(analyser, hotels):
+    analyser.hotels_counter = defaultdict(Counter, {'FR': Counter({'Paris': 2, 'Marseille': 1})})
+    analyser.build_cities_with_most_hotels(hotels)
+    expected_city = analyser.cities[0]
+    assert len(analyser.cities) == 1
+    assert expected_city.name == "Paris"
+    assert expected_city.country == "FR"
+    assert expected_city.latitude == 5
+    assert expected_city.longitude == 7
+    assert expected_city.hotels.equals(hotels[hotels["City"] == "Paris"])
+
+
+def test_weatheranalysis_fetch_city_weather(analyser, city):
+    with patch("WeatherAnalysis.OpenWeather") as mocked:
+        response = Mock()
+        response.results = [2]
+        mocked.return_value = response
+        city_1 = city
+        analyser.cities = [city_1]
+        analyser.fetch_city_weather()
+        assert analyser.cities[0].weather == 2
+
+
+def test_weatheranalysis_create_output_folders(analyser, city):
+    with patch("WeatherAnalysis.Path") as mocked_path:
+        response = Mock()
+        mocked_path.return_value = response
+        analyser.cities = [city, city]
+        analyser.create_output_folders()
+        mocked_path.assert_called_with(analyser.output_folder / city.country / city.name)
+        assert response.mkdir.call_count == 2
+
+
+
+"""
 @pytest.fixture
 def weatheranalysis(tmp_path):
     tmp = tmp_path
@@ -178,3 +254,4 @@ def test_weatheranalysis_run(
     create_charts.assert_called_once()
     create_json_wth_analysis.assert_called_once()
     hotels_to_csv.assert_called_once()
+"""
