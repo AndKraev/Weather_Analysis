@@ -15,12 +15,12 @@ def arg_parser(args):
     )
 
     parser.add_argument(
-        "indir", type=Path, help="a path to an input folder with hotels"
+        "indir", type=str, help="a path to an input folder with hotels"
     )
 
     parser.add_argument(
         "--outdir",
-        type=Path,
+        type=str,
         help="a path to an output folder with results "
         '(by default creates "Output" folder in the input folder)',
     )
@@ -43,13 +43,5 @@ def arg_parser(args):
 
 
 if __name__ == "__main__":
-    parser = vars(arg_parser(sys.argv[1:]))
-
-    WeatherAnalysis(
-        indir=parser["indir"],
-        outdir=parser["outdir"],
-        max_hotels=parser["hotels"],
-        threads=parser["threads"],
-    ).run()
-
+    WeatherAnalysis(*vars(arg_parser(sys.argv[1:])).values()).run()
     print("Completed!")

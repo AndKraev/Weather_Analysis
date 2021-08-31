@@ -48,18 +48,18 @@ def test_dataclass_tempdata():
 
 
 def test_weatheranalysis_count_hotels_in_cities(analyser, hotels):
-    analyser.count_hotels_in_cities(pd.DataFrame(hotels))
+    analyser._count_hotels_in_cities(pd.DataFrame(hotels))
     expected = defaultdict(Counter, {"FR": Counter({"Paris": 2, "Marseille": 1})})
-    assert analyser.hotels_counter == expected
+    assert analyser._hotels_counter == expected
 
 
 def test_weatheranalysis_build_cities_with_most_hotels(analyser, hotels):
-    analyser.hotels_counter = defaultdict(
+    analyser._hotels_counter = defaultdict(
         Counter, {"FR": Counter({"Paris": 2, "Marseille": 1})}
     )
-    analyser.build_cities_with_most_hotels(hotels)
-    expected_city = analyser.cities[0]
-    assert len(analyser.cities) == 1
+    analyser._build_cities_with_most_hotels(hotels)
+    expected_city = analyser._cities[0]
+    assert len(analyser._cities) == 1
     assert expected_city.name == "Paris"
     assert expected_city.country == "FR"
     assert expected_city.latitude == 5
@@ -73,17 +73,17 @@ def test_weatheranalysis_fetch_city_weather(analyser, city):
         response.results = [2]
         mocked.return_value = response
         city_1 = city
-        analyser.cities = [city_1]
-        analyser.fetch_city_weather()
-        assert analyser.cities[0].weather == 2
+        analyser._cities = [city_1]
+        analyser._fetch_city_weather()
+        assert analyser._cities[0].weather == 2
 
 
 def test_weatheranalysis_create_output_folders(analyser, city):
     with patch("WeatherAnalysis.Path") as mocked_path:
         response = Mock()
         mocked_path.return_value = response
-        analyser.cities = [city, city]
-        analyser.create_output_folders()
+        analyser._cities = [city, city]
+        analyser._create_output_folders()
         mocked_path.assert_called_with(
             analyser.output_folder / city.country / city.name
         )
@@ -107,8 +107,8 @@ def test_weatheranalysis_find_max_temp(analyser):
         longitude=1,
         latitude=1,
     )
-    analyser.cities = [city1, city2]
-    temp = analyser.find_max_temp()
+    analyser._cities = [city1, city2]
+    temp = analyser._find_max_temp()
     assert temp.city == "Houston"
     assert temp.date == 2
 
@@ -130,8 +130,8 @@ def test_weatheranalysis_find_min_temp(analyser):
         longitude=1,
         latitude=1,
     )
-    analyser.cities = [city1, city2]
-    temp = analyser.find_min_temp()
+    analyser._cities = [city1, city2]
+    temp = analyser._find_min_temp()
     assert temp.city == "London"
     assert temp.date == 2
 
@@ -153,8 +153,8 @@ def test_weatheranalysis_find_delta_max_temp(analyser):
         longitude=1,
         latitude=1,
     )
-    analyser.cities = [city1, city2]
-    temp = analyser.find_delta_max_temp()
+    analyser._cities = [city1, city2]
+    temp = analyser._find_delta_max_temp()
     assert temp.city == "Houston"
 
 
@@ -175,8 +175,8 @@ def test_weatheranalysis_find_delta_max_min_temp(analyser):
         longitude=1,
         latitude=1,
     )
-    analyser.cities = [city1, city2]
-    temp = analyser.find_delta_max_min_temp()
+    analyser._cities = [city1, city2]
+    temp = analyser._find_delta_max_min_temp()
     assert temp.city == "London"
     assert temp.date == 1
 
@@ -219,7 +219,7 @@ def test_weatheranalysis_find_cities_and_dates_with_top_temp_values(
         },
     }
 
-    analyser.find_cities_and_dates_with_top_temp_values()
+    analyser._find_cities_and_dates_with_top_temp_values()
     mocked_json.dump.assert_called_once_with(
         data, analyser.input_folder, ensure_ascii=False, indent=4
     )
@@ -234,12 +234,12 @@ def test_weatheranalysis_create_temp_charts(analyser):
         longitude=1,
         latitude=1,
     )
-    analyser.cities = [city]
+    analyser._cities = [city]
     with patch("WeatherAnalysis.plt") as mocked_plt:
         mocked_fig = Mock()
         mocked_plt.figure.return_value = mocked_fig
 
-        analyser.create_temp_charts()
+        analyser._create_temp_charts()
 
         mocked_plt.plot.has_calls(
             (["01.01", "02.01"], [8, 10]), (["01.01", "02.01"], [10, 12])
@@ -269,7 +269,7 @@ def test_weatheranalysis_create_csv_files(mocked_pickpoint, analyser):
         longitude=1,
         latitude=1,
     )
-    analyser.cities = [city]
+    analyser._cities = [city]
     mocked_pickpoint.results = addresses
     mocked_pickpoint.return_value = mocked_pickpoint
     path = analyser.output_folder / city.country / city.name
@@ -291,9 +291,9 @@ def test_weatheranalysis_create_output_folders(analyser):
         longitude=1,
         latitude=1,
     )
-    analyser.cities = [city]
+    analyser._cities = [city]
     expected_path = analyser.output_folder / city.country / city.name
-    analyser.create_output_folders()
+    analyser._create_output_folders()
     assert expected_path.exists()
 
 
