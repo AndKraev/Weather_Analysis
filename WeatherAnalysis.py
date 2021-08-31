@@ -135,7 +135,7 @@ class WeatherAnalysis:
         self._fetch_city_weather()
         self._find_cities_and_dates_with_top_temp_values()
         self._create_temp_charts()
-        self.create_csv_files()
+        self._create_csv_files()
 
     def _count_hotels_in_cities(self, all_hotels: pd.DataFrame) -> None:
         """Counts hotels in each city and save data to the attribute _hotels_counter as
@@ -328,7 +328,7 @@ class WeatherAnalysis:
 
             fig.savefig(self.output_folder / city.country / city.name / "chart.png")
 
-    def create_csv_files(self) -> None:
+    def _create_csv_files(self) -> None:
         """Creates csv_files with hotels for each city. Max hotels is determined by a
         max hotels attribute.
 

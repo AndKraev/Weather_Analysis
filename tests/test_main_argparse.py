@@ -20,7 +20,7 @@ def test_command_line_parser_threads():
 
 def test_command_line_parser_threads_default():
     parser = arg_parser(["test"])
-    assert parser.threads == 100
+    assert parser.threads == 1000
 
 
 def test_command_line_parser_hotels():

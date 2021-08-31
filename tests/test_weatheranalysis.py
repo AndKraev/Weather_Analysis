@@ -183,10 +183,10 @@ def test_weatheranalysis_find_delta_max_min_temp(analyser):
 
 @patch("WeatherAnalysis.json")
 @patch("WeatherAnalysis.open")
-@patch("WeatherAnalysis.WeatherAnalysis.find_delta_max_min_temp")
-@patch("WeatherAnalysis.WeatherAnalysis.find_delta_max_temp")
-@patch("WeatherAnalysis.WeatherAnalysis.find_min_temp")
-@patch("WeatherAnalysis.WeatherAnalysis.find_max_temp")
+@patch("WeatherAnalysis.WeatherAnalysis._find_delta_max_min_temp")
+@patch("WeatherAnalysis.WeatherAnalysis._find_delta_max_temp")
+@patch("WeatherAnalysis.WeatherAnalysis._find_min_temp")
+@patch("WeatherAnalysis.WeatherAnalysis._find_max_temp")
 def test_weatheranalysis_find_cities_and_dates_with_top_temp_values(
     max_temp,
     min_temp,
@@ -277,7 +277,7 @@ def test_weatheranalysis_create_csv_files(mocked_pickpoint, analyser):
     df["Address"] = addresses
     expected = df[["Name", "Address", "Latitude", "Longitude"]]
 
-    analyser.create_csv_files()
+    analyser._create_csv_files()
     result = pd.read_csv(path / "Hotels.csv")
     assert result.equals(expected)
 
@@ -297,13 +297,13 @@ def test_weatheranalysis_create_output_folders(analyser):
     assert expected_path.exists()
 
 
-@patch("WeatherAnalysis.WeatherAnalysis.create_csv_files")
-@patch("WeatherAnalysis.WeatherAnalysis.create_temp_charts")
-@patch("WeatherAnalysis.WeatherAnalysis.find_cities_and_dates_with_top_temp_values")
-@patch("WeatherAnalysis.WeatherAnalysis.fetch_city_weather")
-@patch("WeatherAnalysis.WeatherAnalysis.create_output_folders")
-@patch("WeatherAnalysis.WeatherAnalysis.build_cities_with_most_hotels")
-@patch("WeatherAnalysis.WeatherAnalysis.count_hotels_in_cities")
+@patch("WeatherAnalysis.WeatherAnalysis._create_csv_files")
+@patch("WeatherAnalysis.WeatherAnalysis._create_temp_charts")
+@patch("WeatherAnalysis.WeatherAnalysis._find_cities_and_dates_with_top_temp_values")
+@patch("WeatherAnalysis.WeatherAnalysis._fetch_city_weather")
+@patch("WeatherAnalysis.WeatherAnalysis._create_output_folders")
+@patch("WeatherAnalysis.WeatherAnalysis._build_cities_with_most_hotels")
+@patch("WeatherAnalysis.WeatherAnalysis._count_hotels_in_cities")
 @patch("WeatherAnalysis.FileHandler")
 def test_weatheranalysis_run(
     filehandler,
