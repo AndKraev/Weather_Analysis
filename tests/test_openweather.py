@@ -29,10 +29,7 @@ def test_openweather_url_lists(run, time):
         ]
     )
 
-    assert (
-        OpenWeather({"city": (lat, lon)}, threads=100).create_api_ulr_list()
-        == expected_urls
-    )
+    assert OpenWeather([(lat, lon)], threads=100).create_api_ulr_list() == expected_urls
 
 
 @patch("Services.OpenWeather.run")
@@ -42,10 +39,10 @@ def test_openweather_sort_results(run):
         responses = json.load(fl)
     urls = [f"urls_{n}" for n in range(1, 7)]
     results = {url: response for url, response in zip(urls, responses)}
-    ow = OpenWeather({"city": (lat, lon)}, threads=100)
+    ow = OpenWeather([(lat, lon)], threads=100)
     ow.urls_list = urls
-    expected = {
-        "city": [
+    expected = [
+        [
             (1630157206, 22.09, 31.41),
             (1630157206, 22.09, 31.41),
             (1630157206, 22.09, 31.41),
@@ -58,5 +55,5 @@ def test_openweather_sort_results(run):
             (1630580400, 21.41, 31.32),
             (1630666800, 20.4, 32.47),
         ]
-    }
+    ]
     assert ow.sort_results(results) == expected
