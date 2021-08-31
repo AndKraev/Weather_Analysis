@@ -90,45 +90,10 @@ class WeatherAnalysis:
             )
 
     def find_cities_and_dates_with_top_temp_values(self):
-        max_temp = TempData()
-        min_temp = TempData(temp=float("+inf"))
-        delta_max_temp = TempData()
-        delta_max_min_temp = TempData()
-
-        for city in self.cities:
-            city_max_temp = max([day[2] for day in city.weather])
-            city_min_temp = min([day[1] for day in city.weather])
-            city_delta_max_temp = city_max_temp - min([day[2] for day in city.weather])
-            city_delta_max_min_temp = max([day[2] - day[1] for day in city.weather])
-
-            if city_max_temp > max_temp.temp:
-                max_temp.temp = city_max_temp
-                max_temp.city = city.name
-                max_temp.date = sorted(city.weather, key=lambda x: x[2])[-1][0]
-
-            if city_min_temp < min_temp.temp:
-                min_temp.temp = city_min_temp
-                min_temp.city = city.name
-                min_temp.date = sorted(city.weather, key=lambda x: x[1])[0][0]
-
-            if city_delta_max_temp > delta_max_temp.temp:
-                delta_max_temp.temp = city_delta_max_temp
-                delta_max_temp.city = city.name
-
-            if city_delta_max_min_temp > delta_max_min_temp.temp:
-                delta_max_min_temp.temp = city_max_temp
-                delta_max_min_temp.city = city.name
-                delta_max_min_temp.date = sorted(
-                    city.weather, key=lambda x: x[2] - x[1]
-                )[-1][0]
-
-        self.create_json_with_analysis(
-            max_temp, min_temp, delta_max_temp, delta_max_min_temp
-        )
-
-    def create_json_with_analysis(
-        self, max_temp, min_temp, delta_max_temp, delta_max_min_temp
-    ):
+        max_temp = self.find_max_temp()
+        min_temp = self.find_min_temp()
+        delta_max_temp = self.find_delta_max_temp()
+        delta_max_min_temp = self.delta_max_min_temp()
         data = {
             "Maximum Temperature": {
                 "City": max_temp.city,
@@ -151,6 +116,55 @@ class WeatherAnalysis:
 
         with open(self.output_folder / "analysis.json", mode="w") as fl:
             json.dump(data, fl, ensure_ascii=False, indent=4)
+
+    def find_max_temp(self):
+        temp = TempData()
+
+        for city in self.cities:
+            city_max_temp = max([day[2] for day in city.weather])
+            if city_max_temp > temp.temp:
+                temp.temp = city_max_temp
+                temp.city = city.name
+                temp.date = sorted(city.weather, key=lambda x: x[2])[-1][0]
+
+        return temp
+
+    def find_min_temp(self):
+        temp = TempData(temp=float("+inf"))
+
+        for city in self.cities:
+            city_min_temp = min([day[1] for day in city.weather])
+            if city_min_temp < temp.temp:
+                temp.temp = city_min_temp
+                temp.city = city.name
+                temp.date = sorted(city.weather, key=lambda x: x[1])[0][0]
+
+        return temp
+
+    def find_delta_max_temp(self):
+        delta_max_temp = TempData()
+
+        for city in self.cities:
+            city_delta_max_temp = max([day[2] for day in city.weather]) - min([day[2] for day in city.weather])
+            if city_delta_max_temp > delta_max_temp.temp:
+                delta_max_temp.temp = city_delta_max_temp
+                delta_max_temp.city = city.name
+
+        return delta_max_temp
+
+    def delta_max_min_temp(self):
+        delta_max_min_temp = TempData()
+
+        for city in self.cities:
+            city_delta_max_min_temp = max([day[2] - day[1] for day in city.weather])
+            if city_delta_max_min_temp > delta_max_min_temp.temp:
+                delta_max_min_temp.temp = city_delta_max_min_temp
+                delta_max_min_temp.city = city.name
+                delta_max_min_temp.date = sorted(
+                    city.weather, key=lambda x: x[2] - x[1]
+                )[-1][0]
+
+        return delta_max_min_temp
 
     def create_temp_charts(self):
         for city in self.cities:
@@ -189,7 +203,8 @@ if __name__ == "__main__":
     w = WeatherAnalysis(
         r"D:\PyProjects\Weather_Analysis\tests\Data",
         r"D:\PyProjects\Weather_Analysis\tests\Data\Output1",
-        100,
+        max_workers=100,
+        max_hotels=2
     )
     w.run()
     ...
