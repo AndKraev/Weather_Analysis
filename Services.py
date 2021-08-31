@@ -9,7 +9,7 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
-from typing import List, Dict
+from typing import Dict, List
 from zipfile import ZipFile, is_zipfile
 
 import aiohttp
@@ -21,24 +21,25 @@ import Setup
 class FileHandler:
     """Class to handle input files. Takes input and output folders, creates output,
     creates temp folder and unzips archives with csv to a temp folder. Than reads all
-    csv files and concatenate to one DataFrame to store in hotels_df attribute."""
+    csv files and concatenate to one DataFrame to store in hotels_df attribute.
 
-    def __init__(self, input_folder: Path, output_folder: Path) -> None:
-        """Initialize method
-
+    Constructor attributes:
         :param input_folder: Input folder with zip files
         :type input_folder: Path
         :param output_folder: Output folder for results
         :type output_folder: Path
         :return: None
         :rtype: NoneType
-        """
+    """
+
+    def __init__(self, input_folder: Path, output_folder: Path) -> None:
+        """Constructor method"""
         self.input_path = input_folder
         self.output_path = output_folder
         self.temp_path = Path(tempfile.mkdtemp())
-        self.unzip_files()
-        self.hotels_df = self.read_csv()
-        self.clear_rows()
+        self._unzip_files()
+        self.hotels_df = self._read_csv()
+        self._clear_rows()
 
     def __del__(self) -> None:
         """Delete temp folder after when instance is trashed
@@ -51,7 +52,7 @@ class FileHandler:
         except FileNotFoundError:
             pass
 
-    def unzip_files(self) -> None:
+    def _unzip_files(self) -> None:
         """Search for zip files and unzip them to a temporary folder
 
         :return: None
@@ -62,7 +63,7 @@ class FileHandler:
                 with ZipFile(file, mode="r") as archive:
                     archive.extractall(path=self.temp_path)
 
-    def read_csv(self) -> pd.DataFrame:
+    def _read_csv(self) -> pd.DataFrame:
         """Read all csv files from the temporary folder and return concatenated pandas
         DataFrame
 
@@ -78,7 +79,7 @@ class FileHandler:
             ]
         )
 
-    def clear_rows(self) -> None:
+    def _clear_rows(self) -> None:
         """Clears Dataframe from rows with blank or incorrect values and store result
         in an attribute hotels_df
 
@@ -123,16 +124,9 @@ class PickPoint:
     Receives a list of tuples with latitude and longitude. Creates url addresses to
     PickPoint servers and forwards this list of urls to AsyncGetAPI to obtain data.
     Once receives results it creates list of results ordered by an order of received
-    locations and stores it in results attribute"""
+    locations and stores it in results attribute
 
-    def __init__(
-        self,
-        locations: List[tuple[float, float]],
-        threads: int,
-        max_requests: int = None,
-    ):
-        """Initialize method which runs work and fetches data within AsyncGetAPI
-
+    Constructor attributes:
         :param locations: A list of tuples with coordinates where the first float if
         latitude and the second float is longitude of place to fetch an address
         :type locations: A list of tuples with floats.
@@ -143,15 +137,23 @@ class PickPoint:
         when AsyncGetAPI will be called.
         :return: None
         :rtype: NoneType
-        """
+    """
+
+    def __init__(
+        self,
+        locations: List[tuple[float, float]],
+        threads: int,
+        max_requests: int = None,
+    ):
+        """Constructor method which runs work and fetches data within AsyncGetAPI"""
         self.locations = locations
         self.max_requests = max_requests
-        self.urls_list = self.create_api_ulr_list()
-        self.results = self.sort_results(
+        self.urls_list = self._create_api_ulr_list()
+        self.results = self._sort_results(
             AsyncGetAPI(self.urls_list, threads, max_requests=self.max_requests).results
         )
 
-    def create_api_ulr_list(self) -> List[str]:
+    def _create_api_ulr_list(self) -> List[str]:
         """Creates a list of urls for fetching data from PickPoint servers from a list
         of tuples with coordinates. Takes API key from Setup.py. So the key must be
         filled in.
@@ -166,7 +168,7 @@ class PickPoint:
             for lat, lon in self.locations
         ]
 
-    def sort_results(self, results: dict) -> List:
+    def _sort_results(self, results: dict) -> List:
         """Creates a list from AsyncGetAPI ordered by an order of locations that were
         received.
 
@@ -184,13 +186,9 @@ class OpenWeather:
     of tuples with latitude and longitude. Creates url addresses to OpenWeather
     servers and forwards this list of urls to AsyncGetAPI to obtain data. Once
     receives results it creates a dictionary of results where keys are locations and
-    values are tuples with data and stores it in results attribute"""
+    values are tuples with data and stores it in results attribute
 
-    def __init__(
-        self, locations: List[tuple[float, float]], threads: int, max_requests: int = 60
-    ):
-        """Initialize method which runs work.
-
+    Constructor attributes:
         :param locations: A list of tuples with coordinates where the first float if
         latitude and the second float is longitude of place to fetch an address
         :type locations: A list of tuples with floats.
@@ -201,7 +199,12 @@ class OpenWeather:
         when AsyncGetAPI will be called. By default is 60.
         :return: None
         :rtype: NoneType
-        """
+    """
+
+    def __init__(
+        self, locations: List[tuple[float, float]], threads: int, max_requests: int = 60
+    ):
+        """Constructor method which runs work."""
         self.max_requests = max_requests
         self.locations = locations
         self.max_requests = max_requests
@@ -218,14 +221,14 @@ class OpenWeather:
         :return: None
         :rtype: NoneType
         """
-        self.urls_list = self.create_api_ulr_list()
-        self.results = self.sort_results(
+        self.urls_list = self._create_api_ulr_list()
+        self.results = self._sort_results(
             AsyncGetAPI(
                 self.urls_list, self.threads, max_requests=self.max_requests
             ).results
         )
 
-    def create_api_ulr_list(self) -> List[str]:
+    def _create_api_ulr_list(self) -> List[str]:
         """Creates a list of urls for fetching data from OpenWeather servers from a list
         of tuples with coordinates. It creates 6 urls for each place: one url to get
         current weather and a 5 days forecast and 5 urls to get history weather for each
@@ -255,7 +258,7 @@ class OpenWeather:
 
         return urls_list
 
-    def sort_results(
+    def _sort_results(
         self, results: Dict[tuple, List[dict]]
     ) -> List[List[tuple[int, float, float]]]:
         """Creates a dictionary from AsyncGetAPI results where keys are locations and
@@ -392,10 +395,3 @@ class AsyncGetAPI:
                     break
             except:
                 await asyncio.sleep(1)
-
-
-if __name__ == "__main__":
-    c = [(59.53732843321865, 34.02956211486147)]
-    w = {"London": (59.53732843321865, 34.02956211486147)}
-    # print(PickPoint(c).results)
-    print(OpenWeather(w, 100).results)

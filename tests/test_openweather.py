@@ -29,7 +29,9 @@ def test_openweather_url_lists(run, time):
         ]
     )
 
-    assert OpenWeather([(lat, lon)], threads=100).create_api_ulr_list() == expected_urls
+    assert (
+        OpenWeather([(lat, lon)], threads=100)._create_api_ulr_list() == expected_urls
+    )
 
 
 @patch("Services.OpenWeather.run")
@@ -56,4 +58,4 @@ def test_openweather_sort_results(run):
             (1630666800, 20.4, 32.47),
         ]
     ]
-    assert ow.sort_results(results) == expected
+    assert ow._sort_results(results) == expected

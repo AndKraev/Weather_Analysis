@@ -14,9 +14,7 @@ def arg_parser(args):
                                                      data to output folder""",
     )
 
-    parser.add_argument(
-        "indir", type=str, help="a path to an input folder with hotels"
-    )
+    parser.add_argument("indir", type=str, help="a path to an input folder with hotels")
 
     parser.add_argument(
         "--outdir",

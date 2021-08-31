@@ -26,7 +26,7 @@ def test_filehandler_unzip_files(filehandler):
 
 def test_filehandler_read_and_concat_csv(filehandler):
     fl = filehandler
-    assert len(fl.read_csv()) == 2494
+    assert len(fl._read_csv()) == 2494
 
 
 def test_filehandler_clear_rows(filehandler):

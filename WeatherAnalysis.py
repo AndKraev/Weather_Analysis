@@ -2,13 +2,13 @@
 business logic
 """
 import json
-from collections import defaultdict, Counter
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-import pandas as pd
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from Services import FileHandler, OpenWeather, PickPoint
 
