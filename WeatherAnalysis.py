@@ -20,12 +20,13 @@ class City:
     weather: list = None
 
     def __post_init__(self):
-        self.latitude = (
-            self.hotels["Latitude"].min() + self.hotels["Latitude"].max()
-        ) / 2
-        self.longitude = (
-            self.hotels["Longitude"].min() + self.hotels["Longitude"].max()
-        ) / 2
+        if not self.latitude and not self.longitude:
+            self.latitude = (
+                self.hotels["Latitude"].min() + self.hotels["Latitude"].max()
+            ) / 2
+            self.longitude = (
+                self.hotels["Longitude"].min() + self.hotels["Longitude"].max()
+            ) / 2
 
 
 @dataclass
@@ -93,7 +94,7 @@ class WeatherAnalysis:
         max_temp = self.find_max_temp()
         min_temp = self.find_min_temp()
         delta_max_temp = self.find_delta_max_temp()
-        delta_max_min_temp = self.delta_max_min_temp()
+        delta_max_min_temp = self.find_delta_max_min_temp()
         data = {
             "Maximum Temperature": {
                 "City": max_temp.city,
@@ -152,7 +153,7 @@ class WeatherAnalysis:
 
         return delta_max_temp
 
-    def delta_max_min_temp(self):
+    def find_delta_max_min_temp(self):
         delta_max_min_temp = TempData()
 
         for city in self.cities:

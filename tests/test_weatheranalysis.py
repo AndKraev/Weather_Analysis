@@ -82,6 +82,107 @@ def test_weatheranalysis_create_output_folders(analyser, city):
         assert response.mkdir.call_count == 2
 
 
+def test_find_max_temp(analyser):
+    city1 = City(name="Houston", weather=[(1, 0, 0), (2, 0, 30.5)], country=None,
+                 hotels=None, longitude=1, latitude=1)
+    city2 = City(name="London", weather=[(1, 0, 0), (2, 0, 0)], country=None,
+                 hotels=None, longitude=1, latitude=1)
+    analyser.cities = [city1, city2]
+    temp = analyser.find_max_temp()
+    assert temp.city == "Houston"
+    assert temp.date == 2
+
+
+def test_find_min_temp(analyser):
+    city1 = City(name="Houston", weather=[(1, 0, 0), (2, 0, 0)], country=None,
+                 hotels=None, longitude=1, latitude=1)
+    city2 = City(name="London", weather=[(1, 0, 0), (2, -30, 0)], country=None,
+                 hotels=None, longitude=1, latitude=1)
+    analyser.cities = [city1, city2]
+    temp = analyser.find_min_temp()
+    assert temp.city == "London"
+    assert temp.date == 2
+
+
+def test_find_delta_max_temp(analyser):
+    city1 = City(name="Houston", weather=[(1, 0, 10), (2, 0, 5)], country=None,
+                 hotels=None, longitude=1, latitude=1)
+    city2 = City(name="London", weather=[(1, 0, 6), (2, 0, 10)], country=None,
+                 hotels=None, longitude=1, latitude=1)
+    analyser.cities = [city1, city2]
+    temp = analyser.find_delta_max_temp()
+    assert temp.city == "Houston"
+
+
+def test_find_delta_max_min_temp(analyser):
+    city1 = City(name="Houston", weather=[(1, 8, 10), (2, 15, 20)], country=None,
+                 hotels=None, longitude=1, latitude=1)
+    city2 = City(name="London", weather=[(1, -10.5, 10), (2, 17, 19)], country=None,
+                 hotels=None, longitude=1, latitude=1)
+    analyser.cities = [city1, city2]
+    temp = analyser.find_delta_max_min_temp()
+    assert temp.city == "London"
+    assert temp.date == 1
+
+
+@patch("WeatherAnalysis.json")
+@patch("WeatherAnalysis.open")
+@patch("WeatherAnalysis.WeatherAnalysis.find_delta_max_min_temp")
+@patch("WeatherAnalysis.WeatherAnalysis.find_delta_max_temp")
+@patch("WeatherAnalysis.WeatherAnalysis.find_min_temp")
+@patch("WeatherAnalysis.WeatherAnalysis.find_max_temp")
+def test_find_cities_and_dates_with_top_temp_values(
+        max_temp, min_temp,
+        delta_max_temp,
+        delta_max_min_temp,
+        mocked_open,
+        mocked_json,
+        analyser):
+    max_temp.return_value = TempData(city="A", date=1)
+    min_temp.return_value = TempData(city="B", date=2)
+    delta_max_temp.return_value = TempData(city="C", date=3)
+    delta_max_min_temp.return_value = TempData(city="D", date=4)
+    mocked_open.return_value = analyser.input_folder
+    data = {
+        "Maximum Temperature": {
+            "City": "A",
+            "Date": "01.01.1970",
+        },
+        "Minimum Temperature": {
+            "City": "B",
+            "Date": "01.01.1970",
+        },
+        "Maximum delta of maximum temperatures": {
+            "City": "C",
+        },
+        "Maximum delta of minimum and maximum temperatures": {
+            "City": "D",
+            "Date": "01.01.1970",
+        },
+    }
+
+    analyser.find_cities_and_dates_with_top_temp_values()
+    mocked_json.dump.assert_called_once_with(
+        data, analyser.input_folder, ensure_ascii=False, indent=4
+    )
+
+
+def test_create_temp_charts(analyser):
+    city = City(name="Houston", weather=[(1, 8, 10), (90000, 10, 12)], country="US",
+                 hotels=None, longitude=1, latitude=1)
+    analyser.cities = [city]
+    with patch("WeatherAnalysis.plt") as mocked_plt:
+        mocked_fig = Mock()
+        mocked_plt.figure.return_value = mocked_fig
+
+        analyser.create_temp_charts()
+
+        mocked_plt.plot.has_calls(
+            (["01.01", "02.01"], [8, 10]), (["01.01", "02.01"], [10, 12])
+        )
+        mocked_fig.savefig.assert_called_once_with(
+            analyser.output_folder / "US" / "Houston" / "chart.png"
+        )
 
 """
 @pytest.fixture
