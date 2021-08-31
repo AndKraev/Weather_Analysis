@@ -1,3 +1,5 @@
+"""File wth API keys tpo fetch data from servers"""
+
 # API key for using PickPoint geocode
 pickpoint_api = "1x4kgLEfAM7w-6ubGhse"
 
