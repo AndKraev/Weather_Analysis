@@ -1,91 +1,83 @@
-# PythonLab - May 2021
-# Final course project
+# WEATHER ANALYSIS
 
-Необходимо написать консольную утилиту для многопоточной обработки данных, аккумулирования результатов через API из Интернета и их дальнейшего представления на графиках.
+Console utility for multithreaded data processing, accumulation of results via
+APIs from the Internet and their further representation on graphs. Accepts input data
+as a path to a folder with zip archives containing files in the format `.CSV` containing 
+a collection with lines with information about hotels.
+The received data is stored in the output directory with the following structure:
+`{output_folder}\{country}\{city}\`.  
+___
+## Step-by-Step  
+1. Finds all zip files in the input directory and unzips them to get all `.CSV` files.
+2. Clears rows from invalid and missing data. 
+3. Find cities with the most hotels, others are thrown.
+4. Calculates city centers for these cities equidistant to all hotels in the city
+5. Fetches minimum and maximum temperature data for each city center from 
+[OpenWeather](https://openweathermap.org):
+    * historical for the last 5 days;
+    * forecast for the next 5 days;
+    * current values.
+6. Creates temperature graphs for each city center.
+7. From all city centers weathers find and writes the following data to JSON file:
+   * a city and date with maximum temperature for the period;
+   * a city and date with minimum temperature for the period;
+   * the city with the maximum change in the maximum temperature;
+   * the city and the day with the maximum difference between the maximum and minimum 
+     temperature.
+8. Fetches addresses for all hotels for these cities.
+9. Saves in the directory with the specified structure for each city:
+   * all temperature graphs;
+   * hotel list in .CSV format containing:
+     * hotel name,
+     * address,
+     * latitude,
+     * longitude;
+   * received data about city centers into `analysis.json`.
 
-## Входные данные
-Входные данные находятся в каталоге **/data** в данном репозитории в упакованном виде в файле **hotels.zip**.
+____
 
-Внутри данного архива расположено несколько файлов в формате _.CSV_, содержащих множество строк с информацией по отелям. В том числе, среди информации вы найдете:
 
-- название отеля;
-- широту и долготу отеля;
-- страну и город, где расположен объект.
+## Requirements
 
-## Выходные данные
-Все полученные результаты должны быть расположены в выходном каталоге со следующей структурой:
+* Python 3.7 or above
+* Pip installed packages from requirement.txt, please use the following console command:
+    `pip install -r /path/to/requirements.txt`
+* OpenWeather API key which can be obtained: https://openweathermap.org
+* PickPoint API key which can be obtained: https://pickpoint.io
+___
+## Installation
 
-`{output_folder}\{country}\{city}\`
+Please set API keys for [OpenWeather](https://openweathermap.org) and 
+[PickPoint](https://pickpoint.io) in Setup.py.
 
-## Задание
+```buildoutcfg
+# API key for using PickPoint geocode
+pickpoint_api = {YOU API KEY MUST BE HERE}
 
-Задание состоит из нескольких блоков и требований, которые перечислены ниже:
+# API key for using OpenWeather data
+openweather_api = {YOU API KEY MUST BE HERE}
+```
+___
+## Usage
 
-1. Приложение должно представлять собой консольную утилиту, которая принимает на вход следующие параметры:
+On command line, type in the following command for Windows:
 
-    - путь к каталогу с входными данными;
-    - путь к каталогу для выходных данных;
-    - количество потоков для параллельной обработки данных;
-    - возможно другие параметры, необходимые для функционирования приложения.
+    python main.py {path to your input directory}
+
+Optional arguments:
+
+* `--outdir` - path to an output directory, creates a folder named "Output" in the input directory 
+if not set.
+* `--threads` - a number of threads that will be used while fetching a data from servers
+  (default is 1000).
+* `--hotels` - a maximum number of hotels that will be written to output CSV files 
+(default is 100) 
+___
+## Directory Structure
     
-2. Первичная подготовка входных данных для использования:
-
-    - распаковать архив с данными;
-    - очистить данные от невалидных записей (содержащих заведомо ложные значения или отсутствующие необходимые элементы);
-    - произвести группировку: для каждой страны выбрать город, содержащий максимальное количество отелей.
-    
-3. Обработка данных:
-    
-    - Обогатить данные по каждому из отелей в выбранных городах в **многопоточном режиме** его географическим адресом, полученным при помощи пакета **geopy**;
-    - Вычислить географический центр области города, равноудаленный от крайних отелей. 
-    - Для центра области при помощи стороннего сервиса (например, _openweathermap.org_) получить погодные данные:
-    
-        - исторические: за предыдущие 5 дней;
-        - прогноз: на последующие 5 дней;
-        - текущие значения.
-    - Построить графики (например, при помощи пакета **matplotlib**), содержащие зависимости от дня:
-    
-        - минимальной температуры;
-        - максимальной температуры.
-    
-4. Пост-процессинг:
-
-    - Среди всех центров (городов) найти:
-        
-        - город и день наблюдения с максимальной температурой за рассматриваемый период;
-        - город с максимальным изменением максимальной температуры;  
-        - город и день наблюдения с минимальной температурой за рассматриваемый период;
-        - город и день с максимальной разницей между максимальной и минимальной температурой.
-    
-5. Сохранение результатов:
-
-    - В каталоге с указанной структурой для каждого города сохранить:
-        
-        - все полученные графики;
-        - список отелей (название, адрес, широта, долгота) в формате CSV в файлах, содержащих не более 100 записей в каждом;
-        - полученную информацию по центру в произвольном формате, удобном для последующего использования.
-    
-# Требования к проекту
-
-Требования достаточно либеральные:
-- Версия интерпретатора не ниже 3.7;
-- Заполненные _requirements.txt_ или _poetry.toml_;
-- Заполненный _.gitignore_;
-- Выбор конечного инструментария для выполнения задания во многом остается за исполнителем, например:
-  
-   - argparser - для обработки параметров командной строки;
-   - geopy - для получения адреса по координатам;
-   - matplotlib - для построения графиков;
-   - zipfile - для работы с архивам;
-   - requests, urllib, aiohttp-клиент, etc - для осуществления запросов к внешнему API;
-   - threading, multiprocessing, asyncio, etc - для "распараллеливания" задач;
-   - pytest, unittest - для создания тестов;
-   - pandas - для представления данных в виде дата-фреймов;
-   - csv - для работы с CSV-файлами;
-   - и многие другие - как из комплекта поставки python, так и сторонние пакеты.
-- Ключевые фрагменты кода должны быть покрыты unit-тестами;
-- Код должен быть оформлен в соответствии с рекомендациями, данными вам при обучении на курсе;  
-- Должна присутствовать документация, позволяющая незнакомому человеку начать использование приложения.
-
-
-**Оценивается общее качество кода, примененные решения, расширенная функциональность, оптимизации, улучшения и т.д.**
+    tests/                  tests of the core 
+    main.py                 contains a parser to run this script
+    README.md               this file
+    Services.py             service classes
+    Setup.py                API keys
+    WeatherAnalysis.py      business logic class and dataclasses
